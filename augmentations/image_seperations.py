@@ -39,7 +39,7 @@ def count_images_by_dimensions(folder_path, target_width, target_height):
     return count
 
 # --- Configuration ---
-# IMPORTANT: Replace this with the actual path to your images folder
+
 images_folder = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed/images/' 
 
 target_w = 4000
