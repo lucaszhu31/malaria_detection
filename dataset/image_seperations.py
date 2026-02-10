@@ -15,7 +15,7 @@ def count_images_by_dimensions(folder_path, target_width, target_height):
     """
     count = 0
     # List of common image file extensions
-    image_extensions = ('.jpg', '.jpeg', '.png')
+    image_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif')
 
     if not os.path.isdir(folder_path):
         print(f"Error: Folder not found at {folder_path}")
@@ -39,12 +39,24 @@ def count_images_by_dimensions(folder_path, target_width, target_height):
     return count
 
 # --- Configuration ---
+# Base path to your images folder
+base_images_folder = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed/images/' 
 
-images_folder = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed/images/' 
+# Define paths for train and validation folders
+train_folder = os.path.join(base_images_folder, 'train')
+val_folder = os.path.join(base_images_folder, 'val')
 
 target_w = 4000
 target_h = 3000
 
-# Call the function and print the result
-matching_images_count = count_images_by_dimensions(images_folder, target_w, target_h)
-print(f"\nTotal images with {target_w}x{target_h} pixels: {matching_images_count}")
+# Call the function for train folder
+matching_images_train = count_images_by_dimensions(train_folder, target_w, target_h)
+print(f"Total images in train folder with {target_w}x{target_h} pixels: {matching_images_train}")
+
+# Call the function for val folder
+matching_images_val = count_images_by_dimensions(val_folder, target_w, target_h)
+print(f"Total images in val folder with {target_w}x{target_h} pixels: {matching_images_val}")
+
+# Calculate and print the combined total
+total_matching_images = matching_images_train + matching_images_val
+print(f"\nCombined total images with {target_w}x{target_h} pixels across train and val folders: {total_matching_images}")
