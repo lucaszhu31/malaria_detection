@@ -553,7 +553,7 @@ def main():
     parser.add_argument('--drive-root', type=str, default=None,
                         help='Google Drive root path (Colab). Example: /content/drive/MyDrive')
     
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
     
     # Initialize classifier
     classifier = MobileNetV3Classifier(
