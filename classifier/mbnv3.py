@@ -90,6 +90,11 @@ class MobileNetV3Classifier:
             self.output_dir = f"{self.drive_root}/science_fair_2026/mbv3_classfier/results_classifier"
         else:
             self.output_dir = "./malaria_mobilenetv3"
+        
+        # Delete and recreate output directory for clean start
+        if os.path.exists(self.output_dir):
+            print(f"Deleting existing output directory: {self.output_dir}")
+            shutil.rmtree(self.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
         
         self.model = None
@@ -402,6 +407,9 @@ class MobileNetV3Classifier:
         
         # Add callback to unfreeze base model at specified epoch
         if unfreeze_at_epoch > 0:
+            # Capture learning_rate from outer scope
+            lr = self.learning_rate
+            
             class UnfreezeCallback(keras.callbacks.Callback):
                 def on_epoch_end(self, epoch, logs=None):
                     if epoch == unfreeze_at_epoch - 1:
@@ -409,10 +417,10 @@ class MobileNetV3Classifier:
                         print(f"\nUnfreezing base model at epoch {epoch + 1}")
                         self.model.compile(
                             optimizer=keras.optimizers.Adam(
-                                learning_rate=self.learning_rate / 10  # Lower LR for fine-tuning
+                                learning_rate=lr / 10  # Lower LR for fine-tuning
                             ),
                             loss='binary_crossentropy',
-                            metrics=['accuracy']
+                            metrics=['accuracy', keras.metrics.Precision(), keras.metrics.Recall()]
                         )
             
             callbacks.append(UnfreezeCallback())
@@ -427,11 +435,16 @@ class MobileNetV3Classifier:
         if val_steps is not None:
             print(f"Val steps per epoch: {val_steps}")
 
+        # Add class weights to combat imbalance (penalize artifact misclassification more)
+        class_weight = {0: 2.0, 1: 1.0}  # Weight artifacts_bg 2x to balance 2:1 ratio
+        print(f"Using class weights: {class_weight}")
+        
         fit_kwargs = dict(
             x=train_generator,
             epochs=epochs,
             validation_data=val_generator,
-            callbacks=callbacks
+            callbacks=callbacks,
+            class_weight=class_weight
         )
         if train_steps is not None:
             fit_kwargs['steps_per_epoch'] = train_steps
