@@ -11,7 +11,7 @@ Dataset structure expected:
       parasites/
       artifacts_bg/
 """
-print(1)
+
 import os
 import shutil
 import zipfile
@@ -98,6 +98,7 @@ class MobileNetV3Classifier:
         print(f"Dataset root: {self.dataset_root}")
         print(f"Output directory: {self.output_dir}")
         print(f"Image dimensions: {self.img_size}×{self.img_size}")
+        print(123)
     
     def _find_dataset(self):
         """Search for dataset in common locations."""
