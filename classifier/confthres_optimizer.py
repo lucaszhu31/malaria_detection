@@ -7,11 +7,11 @@ from ultralytics import YOLO
 
 # --- Configuration ---
 CONFIDENCE_THRESHOLD = 0.20
-IOU_THRESHOLD = 0.6  # Minimum IoU to consider a prediction as matching a label
+IOU_THRESHOLD = 0.3  # Minimum IoU to consider a prediction as matching a label
 THRESHOLD_STEP = 0.05  # Step to adjust confidence threshold
 TARGET_PARASITE_RATIO_MIN = 0.48  # 48%
 TARGET_PARASITE_RATIO_MAX = 0.52  # 52%
-CROPS_PER_ITERATION = 100  # Check ratio after every 100 crops
+CROPS_PER_ITERATION = 1000  # Check ratio after every 1000 crops
 
 MODEL_PATH = '/content/drive/MyDrive/science_fair_2026/kaggle_results/r_kaggle11/malaria_results_highres/weights/best.pt'
 DATA_YAML_PATH = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/data.yaml'
@@ -79,6 +79,17 @@ def check_match_with_original_labels(pred_box, original_labels, trophozoite_id):
                 return True
     return False
 
+def check_match_with_label_class(pred_box, original_labels, label_class_id):
+    """Check if predicted box matches any original label for a given class ID"""
+    if label_class_id is None:
+        return False
+    for label_cls_id, label_box in original_labels:
+        if label_cls_id == label_class_id:
+            iou = calculate_iou(pred_box, label_box)
+            if iou >= IOU_THRESHOLD:
+                return True
+    return False
+
 def count_crops_in_folders(base_dir):
     """Count total files in parasites and artifacts_bg folders"""
     parasites_count = 0
@@ -103,11 +114,12 @@ def create_folder_structure(base_dir):
     os.makedirs(os.path.join(base_dir, 'val', 'artifacts_bg'), exist_ok=True)
 
 # --- 0. Copy images from Google Drive to local storage ---
-print(f"Copying images from Google Drive to local storage...")
-if os.path.exists(LOCAL_INPUT_DIR):
-    shutil.rmtree(LOCAL_INPUT_DIR)
-shutil.copytree(GDRIVE_INPUT_DIR, LOCAL_INPUT_DIR)
-print(f"Copy complete!")
+if not os.path.exists(LOCAL_INPUT_DIR):
+    print(f"Copying images from Google Drive to local storage...")
+    shutil.copytree(GDRIVE_INPUT_DIR, LOCAL_INPUT_DIR)
+    print(f"Copy complete!")
+else:
+    print(f"Using existing local copy at {LOCAL_INPUT_DIR}")
 
 INPUT_DIR = LOCAL_INPUT_DIR
 
@@ -118,21 +130,33 @@ with open(DATA_YAML_PATH, 'r') as f:
 
 class_names = data_config.get('names')
 trophozoite_id = None
+wbc_id = None
 
 # Handle both list and dict formats for 'names'
 if isinstance(class_names, list):
     if 'Trophozoite' in class_names:
         trophozoite_id = class_names.index('Trophozoite')
+    if 'WBC' in class_names:
+        wbc_id = class_names.index('WBC')
 elif isinstance(class_names, dict):
     for k, v in class_names.items():
         if v == 'Trophozoite':
             trophozoite_id = k
+            break
+    for k, v in class_names.items():
+        if v == 'WBC':
+            wbc_id = k
             break
 
 if trophozoite_id is None:
     print(f"WARNING: 'Trophozoite' not found in {class_names}. Processing will check class names dynamically.")
 else:
     print(f"Target Class found: 'Trophozoite' (ID: {trophozoite_id})")
+
+if wbc_id is None:
+    print(f"WARNING: 'WBC' not found in {class_names}. WBC matches will not be ignored.")
+else:
+    print(f"Target Class found: 'WBC' (ID: {wbc_id})")
 
 # --- 2. Initialize YOLO Model ---
 print("Initializing YOLO model...")
@@ -141,6 +165,9 @@ detection_model = YOLO(MODEL_PATH)
 # --- 3. Process Images and Save Crops with Dynamic Threshold Tuning ---
 current_threshold = CONFIDENCE_THRESHOLD
 found_optimal_threshold = False
+last_ratio = None
+last_threshold = None
+last_adjustment = None
 
 while not found_optimal_threshold:
     print(f"\n{'='*60}")
@@ -154,8 +181,8 @@ while not found_optimal_threshold:
     
     count = 0
 
-    # Process both train and val splits
-    for split in ['train', 'val']:
+    # Process only val split
+    for split in ['val']:
         split_dir = os.path.join(INPUT_DIR, split)
         labels_dir = os.path.join(GDRIVE_LABELS_DIR, split)
         
@@ -165,11 +192,15 @@ while not found_optimal_threshold:
         
         # Only get images, avoiding directories
         image_files = [f for f in os.listdir(split_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+        print(f"Found {len(image_files)} images in {split} folder")
         
         for filename in image_files:
             # Stop after 100 crops
             if count >= CROPS_PER_ITERATION:
+                print(f"Stopping: reached {count} crops limit")
                 break
+            
+            print(f"Processing: {filename}")
             
             image_path = os.path.join(split_dir, filename)
             
@@ -189,9 +220,14 @@ while not found_optimal_threshold:
             # Run YOLO prediction with current threshold
             results = detection_model(image_path, conf=current_threshold, verbose=False)
             
+            # DEBUG: Count total YOLO detections
+            total_yolo_detections = sum(len(result.boxes) for result in results)
+            if total_yolo_detections > 0:
+                print(f"  {filename}: YOLO found {total_yolo_detections} detections")
+            
             # Filter and Save Crops
             for i, result in enumerate(results):
-                for detection in result.boxes:
+                for detection_idx, detection in enumerate(result.boxes):
                     cls_id = int(detection.cls[0])
                     cls_name = result.names[cls_id]
                     
@@ -199,11 +235,14 @@ while not found_optimal_threshold:
                     pred_box = [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])]
                     
                     # Check if prediction matches any original label
-                    matches_label = check_match_with_original_labels(pred_box, original_labels, trophozoite_id)
+                    matches_trophozoite = check_match_with_original_labels(pred_box, original_labels, trophozoite_id)
+                    matches_wbc = check_match_with_label_class(pred_box, original_labels, wbc_id)
                     
                     # Determine category based on match with original labels
-                    if matches_label:
+                    if matches_trophozoite:
                         category = 'parasites'
+                    elif matches_wbc:
+                        continue
                     else:
                         category = 'artifacts_bg'
                     
@@ -216,10 +255,12 @@ while not found_optimal_threshold:
                     # Only save if the crop has valid dimensions
                     if x2 > x1 and y2 > y1:
                         crop = original_img[y1:y2, x1:x2]
-                        crop_filename = f"{os.path.splitext(filename)[0]}_crop_{i}.jpg"
+                        crop_filename = f"{os.path.splitext(filename)[0]}_crop_{i}_{detection_idx}.jpg"
                         crop_path = os.path.join(CROPS_BASE_DIR, split, category, crop_filename)
                         cv2.imwrite(crop_path, crop)
                         count += 1
+                    else:
+                        print(f"    INVALID COORDS: x1={int(bbox[0])}, y1={int(bbox[1])}, x2={int(bbox[2])}, y2={int(bbox[3])} → clamped to x1={x1}, y1={y1}, x2={x2}, y2={y2}")
                         
                         # Check after 100 crops
                         if count >= CROPS_PER_ITERATION:
@@ -259,17 +300,43 @@ while not found_optimal_threshold:
             found_optimal_threshold = True
         else:
             # Adjust threshold
-            if parasite_ratio > TARGET_PARASITE_RATIO_MAX:
-                # Too many parasites, increase confidence threshold to reduce detections
-                print(f"  → Too many parasites, increasing threshold...")
-                current_threshold += THRESHOLD_STEP
+            desired_adjustment = "up" if parasite_ratio > TARGET_PARASITE_RATIO_MAX else "down"
+            
+            # If the last adjustment made it worse, reverse direction
+            if last_ratio is not None and last_adjustment == desired_adjustment:
+                last_deviation = abs(last_ratio - 0.5)
+                current_deviation = abs(parasite_ratio - 0.5)
+                if current_deviation > last_deviation:
+                    if last_adjustment == "up":
+                        print("  → Ratio got worse after increasing, reversing to lower threshold...")
+                        current_threshold = (last_threshold if last_threshold is not None else current_threshold) - THRESHOLD_STEP
+                        desired_adjustment = "down"
+                    else:
+                        print("  → Ratio got worse after decreasing, reversing to higher threshold...")
+                        current_threshold = (last_threshold if last_threshold is not None else current_threshold) + THRESHOLD_STEP
+                        desired_adjustment = "up"
+                else:
+                    if desired_adjustment == "up":
+                        print(f"  → Too many parasites, increasing threshold...")
+                        current_threshold += THRESHOLD_STEP
+                    else:
+                        print(f"  → Too few parasites, decreasing threshold...")
+                        current_threshold -= THRESHOLD_STEP
             else:
-                # Too few parasites, decrease confidence threshold to increase detections
-                print(f"  → Too few parasites, decreasing threshold...")
-                current_threshold -= THRESHOLD_STEP
+                if desired_adjustment == "up":
+                    print(f"  → Too many parasites, increasing threshold...")
+                    current_threshold += THRESHOLD_STEP
+                else:
+                    print(f"  → Too few parasites, decreasing threshold...")
+                    current_threshold -= THRESHOLD_STEP
             
             # Clamp threshold between reasonable values
             current_threshold = max(0.05, min(0.95, current_threshold))
+            
+            # Store last adjustment info
+            last_ratio = parasite_ratio
+            last_threshold = current_threshold
+            last_adjustment = desired_adjustment
     else:
         print(f"No crops generated. Decreasing threshold...")
         current_threshold -= THRESHOLD_STEP
