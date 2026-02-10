@@ -11,7 +11,7 @@ Dataset structure expected:
       parasites/
       artifacts_bg/
 """
-
+print(1)
 import os
 import shutil
 import zipfile
