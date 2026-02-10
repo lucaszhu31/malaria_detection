@@ -16,6 +16,7 @@ CROPS_PER_ITERATION = 100  # Check ratio after every 100 crops
 MODEL_PATH = '/content/drive/MyDrive/science_fair_2026/kaggle_results/r_kaggle11/malaria_results_highres/weights/best.pt'
 DATA_YAML_PATH = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/data.yaml'
 GDRIVE_INPUT_DIR = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/images/'
+GDRIVE_LABELS_DIR = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/labels/'
 LOCAL_INPUT_DIR = '/tmp/input_images'
 CROPS_BASE_DIR = './crops_for_mobilenet'
 
@@ -155,8 +156,8 @@ while not found_optimal_threshold:
 
     # Process both train and val splits
     for split in ['train', 'val']:
-        split_dir = os.path.join(INPUT_DIR, split, 'images') if os.path.exists(os.path.join(INPUT_DIR, split, 'images')) else os.path.join(INPUT_DIR, split)
-        labels_dir = os.path.join(GDRIVE_INPUT_DIR, split, 'labels') if 'images' in split_dir else os.path.join(GDRIVE_INPUT_DIR, split)
+        split_dir = os.path.join(INPUT_DIR, split)
+        labels_dir = os.path.join(GDRIVE_LABELS_DIR, split)
         
         if not os.path.exists(split_dir):
             print(f"Warning: {split_dir} not found, skipping...")
