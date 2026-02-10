@@ -220,9 +220,12 @@ class MobileNetV3Classifier:
     
     def build_data_generators(self, augmentation=True):
         """Build ImageDataGenerators for train and validation."""
-        # Choose target size based on resize mode
-        target_size = (self.img_size, self.img_size) if self.resize_mode == 'stretch' else (None, None)
-        
+        if self.resize_mode == 'pad':
+            train_ds = self._build_tf_dataset('train', augment=augmentation, shuffle=True)
+            val_ds = self._build_tf_dataset('val', augment=False, shuffle=False)
+            return train_ds, val_ds
+
+        # Stretch mode uses ImageDataGenerator
         if augmentation:
             train_datagen = ImageDataGenerator(
                 rescale=1./255,
@@ -237,46 +240,85 @@ class MobileNetV3Classifier:
             )
         else:
             train_datagen = ImageDataGenerator(rescale=1./255)
-        
+
         val_datagen = ImageDataGenerator(rescale=1./255)
-        
-        # For padding mode, set target_size to None and apply custom preprocessing
-        if self.resize_mode == 'pad':
-            # Custom function to apply padding
-            def preprocess_with_pad(x):
-                # x is a single image array in range [0, 255]
-                x = tf.convert_to_tensor(x, dtype=tf.float32)
-                return self._resize_with_padding(x) / 255.0
-            
-            preprocessing_function = preprocess_with_pad
-            target_size_train = (None, None)
-        else:
-            preprocessing_function = None
-            target_size_train = (self.img_size, self.img_size)
-        
-        # Load train data
+
+        target_size_train = (self.img_size, self.img_size)
+
         train_generator = train_datagen.flow_from_directory(
             os.path.join(self.dataset_root, 'train'),
             target_size=target_size_train,
             batch_size=self.batch_size,
             class_mode='binary',  # parasites=1, artifacts_bg=0
             classes={'artifacts_bg': 0, 'parasites': 1},
-            shuffle=True,
-            preprocessing_function=preprocessing_function
+            shuffle=True
         )
-        
-        # Load validation data
+
         val_generator = val_datagen.flow_from_directory(
             os.path.join(self.dataset_root, 'val'),
             target_size=target_size_train,
             batch_size=self.batch_size,
             class_mode='binary',
             classes={'artifacts_bg': 0, 'parasites': 1},
-            shuffle=False,
-            preprocessing_function=preprocessing_function
+            shuffle=False
         )
-        
+
         return train_generator, val_generator
+
+    def _build_tf_dataset(self, split, augment=False, shuffle=False):
+        """Build a tf.data pipeline with padding resize."""
+        file_paths, labels = self._list_files_and_labels(split)
+        if not file_paths:
+            raise FileNotFoundError(f"No images found for split '{split}'")
+
+        ds = tf.data.Dataset.from_tensor_slices((file_paths, labels))
+        if shuffle:
+            ds = ds.shuffle(buffer_size=len(file_paths), reshuffle_each_iteration=True)
+
+        ds = ds.map(self._load_and_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+
+        if augment:
+            ds = ds.map(self._augment_image, num_parallel_calls=tf.data.AUTOTUNE)
+
+        ds = ds.batch(self.batch_size).prefetch(tf.data.AUTOTUNE)
+        return ds
+
+    def _list_files_and_labels(self, split):
+        """Collect image file paths and binary labels for a split."""
+        base_dir = os.path.join(self.dataset_root, split)
+        class_map = {'artifacts_bg': 0, 'parasites': 1}
+        exts = ('.jpg', '.jpeg', '.png', '.bmp')
+
+        file_paths = []
+        labels = []
+
+        for class_name, label in class_map.items():
+            class_dir = os.path.join(base_dir, class_name)
+            if not os.path.isdir(class_dir):
+                continue
+            for root, _, files in os.walk(class_dir):
+                for fname in files:
+                    if fname.lower().endswith(exts):
+                        file_paths.append(os.path.join(root, fname))
+                        labels.append(label)
+
+        return file_paths, labels
+
+    def _load_and_preprocess(self, file_path, label):
+        """Load image file, decode, pad-resize, and normalize."""
+        image_bytes = tf.io.read_file(file_path)
+        image = tf.image.decode_image(image_bytes, channels=3, expand_animations=False)
+        image = tf.image.convert_image_dtype(image, tf.float32)  # [0,1]
+        image = self._resize_with_padding(image)
+        return image, label
+
+    def _augment_image(self, image, label):
+        """Lightweight augmentation for tf.data pipeline."""
+        image = tf.image.random_flip_left_right(image)
+        image = tf.image.random_flip_up_down(image)
+        image = tf.image.random_brightness(image, max_delta=0.05)
+        image = tf.image.random_contrast(image, lower=0.9, upper=1.1)
+        return image, label
     
     def build_model(self, pretrained=True):
         """Build MobileNetV3 model."""
@@ -374,22 +416,28 @@ class MobileNetV3Classifier:
             
             callbacks.append(UnfreezeCallback())
         
-        # Calculate steps
-        train_steps = max(1, len(train_generator))
-        val_steps = max(1, len(val_generator))
-        
+        # Calculate steps (only for generators with __len__)
+        train_steps = len(train_generator) if hasattr(train_generator, '__len__') else None
+        val_steps = len(val_generator) if hasattr(val_generator, '__len__') else None
+
         print(f"\nStarting training for {epochs} epochs...")
-        print(f"Train steps per epoch: {train_steps}")
-        print(f"Val steps per epoch: {val_steps}")
-        
-        self.history = self.model.fit(
-            train_generator,
+        if train_steps is not None:
+            print(f"Train steps per epoch: {train_steps}")
+        if val_steps is not None:
+            print(f"Val steps per epoch: {val_steps}")
+
+        fit_kwargs = dict(
+            x=train_generator,
             epochs=epochs,
             validation_data=val_generator,
-            callbacks=callbacks,
-            steps_per_epoch=train_steps,
-            validation_steps=val_steps
+            callbacks=callbacks
         )
+        if train_steps is not None:
+            fit_kwargs['steps_per_epoch'] = train_steps
+        if val_steps is not None:
+            fit_kwargs['validation_steps'] = val_steps
+
+        self.history = self.model.fit(**fit_kwargs)
         
         return self.history
     
