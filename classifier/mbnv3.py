@@ -87,8 +87,8 @@ class MobileNetV3Classifier:
         if output_dir:
             self.output_dir = output_dir
         elif self._is_colab():
-            # Use the drive_root which already points to the right location
-            self.output_dir = f"{self.drive_root}/results_classifier"
+            # Save directly in mbv3_classfier folder, not in crops_for_mobilenet
+            self.output_dir = "/content/drive/MyDrive/science_fair_2026/mbv3_classfier/results_classifier"
         else:
             self.output_dir = "./malaria_mobilenetv3"
         
