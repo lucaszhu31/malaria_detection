@@ -87,7 +87,8 @@ class MobileNetV3Classifier:
         if output_dir:
             self.output_dir = output_dir
         elif self._is_colab():
-            self.output_dir = f"{self.drive_root}/science_fair_2026/mbv3_classfier/results_classifier"
+            # Use the drive_root which already points to the right location
+            self.output_dir = f"{self.drive_root}/results_classifier"
         else:
             self.output_dir = "./malaria_mobilenetv3"
         
@@ -415,12 +416,17 @@ class MobileNetV3Classifier:
                     if epoch == unfreeze_at_epoch - 1:
                         self.model.layers[0].trainable = True
                         print(f"\nUnfreezing base model at epoch {epoch + 1}")
+                        # Recompile with fresh metric instances
                         self.model.compile(
                             optimizer=keras.optimizers.Adam(
                                 learning_rate=lr / 10  # Lower LR for fine-tuning
                             ),
                             loss='binary_crossentropy',
-                            metrics=['accuracy', keras.metrics.Precision(), keras.metrics.Recall()]
+                            metrics=[
+                                'accuracy',
+                                keras.metrics.Precision(name='precision'),
+                                keras.metrics.Recall(name='recall')
+                            ]
                         )
             
             callbacks.append(UnfreezeCallback())
