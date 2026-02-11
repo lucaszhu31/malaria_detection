@@ -68,12 +68,17 @@ class CustomCNNClassifier:
             right = pad_w - left
             padded = tf.pad(img, [[top, bottom], [left, right], [0, 0]], 
                           constant_values=0)
+            # Cast to float32 and set explicit shape
+            padded = tf.cast(padded, tf.float32)
+            padded = tf.ensure_shape(padded, [self.img_size, self.img_size, 3])
             return padded
         
         # Large images: resize normally
         def resize_large():
             resized = tf.image.resize(img, [self.img_size, self.img_size], 
                                     method='bilinear')
+            # Ensure explicit shape
+            resized = tf.ensure_shape(resized, [self.img_size, self.img_size, 3])
             return resized
         
         # Choose processing based on size
