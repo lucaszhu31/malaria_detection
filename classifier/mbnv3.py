@@ -376,6 +376,7 @@ class MobileNetV3Classifier:
               early_stopping=True):
         """
         Train the model with optional unfreezing of base model.
+        Uses two-phase training to avoid recompile issues.
         
         Args:
             train_generator: Training data generator
@@ -384,80 +385,142 @@ class MobileNetV3Classifier:
             unfreeze_at_epoch: Epoch at which to unfreeze base model
             early_stopping: Whether to use early stopping
         """
-        callbacks = [
-            keras.callbacks.ModelCheckpoint(
-                os.path.join(self.output_dir, 'best.h5'),
-                monitor='val_accuracy',
-                save_best_only=True,
-                mode='max'
-            ),
-            keras.callbacks.TensorBoard(
-                log_dir=os.path.join(self.output_dir, 'logs'),
-                histogram_freq=1
-            )
-        ]
-        
-        if early_stopping:
-            callbacks.append(
-                keras.callbacks.EarlyStopping(
-                    monitor='val_loss',
-                    patience=10,
-                    restore_best_weights=True
-                )
-            )
-        
-        # Add callback to unfreeze base model at specified epoch
-        if unfreeze_at_epoch > 0:
-            # Capture learning_rate from outer scope
-            lr = self.learning_rate
-            
-            class UnfreezeCallback(keras.callbacks.Callback):
-                def on_epoch_end(self, epoch, logs=None):
-                    if epoch == unfreeze_at_epoch - 1:
-                        self.model.layers[0].trainable = True
-                        print(f"\nUnfreezing base model at epoch {epoch + 1}")
-                        # Recompile with fresh metric instances
-                        self.model.compile(
-                            optimizer=keras.optimizers.Adam(
-                                learning_rate=lr / 10  # Lower LR for fine-tuning
-                            ),
-                            loss='binary_crossentropy',
-                            metrics=[
-                                'accuracy',
-                                keras.metrics.Precision(name='precision'),
-                                keras.metrics.Recall(name='recall')
-                            ]
-                        )
-            
-            callbacks.append(UnfreezeCallback())
-        
         # Calculate steps (only for generators with __len__)
         train_steps = len(train_generator) if hasattr(train_generator, '__len__') else None
         val_steps = len(val_generator) if hasattr(val_generator, '__len__') else None
 
-        print(f"\nStarting training for {epochs} epochs...")
-        if train_steps is not None:
-            print(f"Train steps per epoch: {train_steps}")
-        if val_steps is not None:
-            print(f"Val steps per epoch: {val_steps}")
-
-        # Add class weights to combat imbalance (penalize artifact misclassification more)
-        class_weight = {0: 2.0, 1: 1.0}  # Weight artifacts_bg 2x to balance 2:1 ratio
+        # Add class weights to combat imbalance
+        class_weight = {0: 2.0, 1: 1.0}
         print(f"Using class weights: {class_weight}")
         
-        fit_kwargs = dict(
-            x=train_generator,
-            epochs=epochs,
-            validation_data=val_generator,
-            callbacks=callbacks,
-            class_weight=class_weight
-        )
-        if train_steps is not None:
-            fit_kwargs['steps_per_epoch'] = train_steps
-        if val_steps is not None:
-            fit_kwargs['validation_steps'] = val_steps
+        # Two-phase training if unfreezing is enabled
+        if unfreeze_at_epoch > 0 and unfreeze_at_epoch < epochs:
+            print(f"\n=== PHASE 1: Training with frozen base for {unfreeze_at_epoch} epochs ===")
+            
+            # Phase 1: Frozen base
+            callbacks_phase1 = [
+                keras.callbacks.ModelCheckpoint(
+                    os.path.join(self.output_dir, 'best.h5'),
+                    monitor='val_accuracy',
+                    save_best_only=True,
+                    mode='max'
+                ),
+                keras.callbacks.TensorBoard(
+                    log_dir=os.path.join(self.output_dir, 'logs'),
+                    histogram_freq=1
+                )
+            ]
+            
+            fit_kwargs = dict(
+                x=train_generator,
+                epochs=unfreeze_at_epoch,
+                validation_data=val_generator,
+                callbacks=callbacks_phase1,
+                class_weight=class_weight
+            )
+            if train_steps is not None:
+                fit_kwargs['steps_per_epoch'] = train_steps
+            if val_steps is not None:
+                fit_kwargs['validation_steps'] = val_steps
 
-        self.history = self.model.fit(**fit_kwargs)
+            history1 = self.model.fit(**fit_kwargs)
+            
+            # Phase 2: Unfreeze and continue
+            print(f"\n=== PHASE 2: Unfreezing base model and training for {epochs - unfreeze_at_epoch} more epochs ===")
+            self.model.layers[0].trainable = True
+            self.model.compile(
+                optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate / 10),
+                loss='binary_crossentropy',
+                metrics=['accuracy', keras.metrics.Precision(name='precision'), keras.metrics.Recall(name='recall')]
+            )
+            
+            callbacks_phase2 = [
+                keras.callbacks.ModelCheckpoint(
+                    os.path.join(self.output_dir, 'best.h5'),
+                    monitor='val_accuracy',
+                    save_best_only=True,
+                    mode='max'
+                ),
+                keras.callbacks.TensorBoard(
+                    log_dir=os.path.join(self.output_dir, 'logs'),
+                    histogram_freq=1
+                )
+            ]
+            
+            if early_stopping:
+                callbacks_phase2.append(
+                    keras.callbacks.EarlyStopping(
+                        monitor='val_loss',
+                        patience=10,
+                        restore_best_weights=True
+                    )
+                )
+            
+            fit_kwargs = dict(
+                x=train_generator,
+                epochs=epochs,
+                initial_epoch=unfreeze_at_epoch,
+                validation_data=val_generator,
+                callbacks=callbacks_phase2,
+                class_weight=class_weight
+            )
+            if train_steps is not None:
+                fit_kwargs['steps_per_epoch'] = train_steps
+            if val_steps is not None:
+                fit_kwargs['validation_steps'] = val_steps
+
+            history2 = self.model.fit(**fit_kwargs)
+            
+            # Combine histories
+            self.history = type('obj', (object,), {
+                'history': {
+                    **{k: history1.history[k] + history2.history[k] for k in history1.history.keys()}
+                }
+            })()
+            
+        else:
+            # Single-phase training
+            print(f"\nStarting training for {epochs} epochs...")
+            if train_steps is not None:
+                print(f"Train steps per epoch: {train_steps}")
+            if val_steps is not None:
+                print(f"Val steps per epoch: {val_steps}")
+                
+            callbacks = [
+                keras.callbacks.ModelCheckpoint(
+                    os.path.join(self.output_dir, 'best.h5'),
+                    monitor='val_accuracy',
+                    save_best_only=True,
+                    mode='max'
+                ),
+                keras.callbacks.TensorBoard(
+                    log_dir=os.path.join(self.output_dir, 'logs'),
+                    histogram_freq=1
+                )
+            ]
+            
+            if early_stopping:
+                callbacks.append(
+                    keras.callbacks.EarlyStopping(
+                        monitor='val_loss',
+                        patience=10,
+                        restore_best_weights=True
+                    )
+                )
+            
+            fit_kwargs = dict(
+                x=train_generator,
+                epochs=epochs,
+                validation_data=val_generator,
+                callbacks=callbacks,
+                class_weight=class_weight
+            )
+            if train_steps is not None:
+                fit_kwargs['steps_per_epoch'] = train_steps
+            if val_steps is not None:
+                fit_kwargs['validation_steps'] = val_steps
+
+            self.history = self.model.fit(**fit_kwargs)
         
         return self.history
     
