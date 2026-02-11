@@ -583,8 +583,8 @@ class MobileNetV3Classifier:
         self.model.save(model_path)
         print(f"Saved model to {model_path}")
         
-        # Save weights
-        weights_path = os.path.join(self.output_dir, 'weights.h5')
+        # Save weights (use .weights.h5 for Keras 3.x compatibility)
+        weights_path = os.path.join(self.output_dir, 'model.weights.h5')
         self.model.save_weights(weights_path)
         print(f"Saved weights to {weights_path}")
         
