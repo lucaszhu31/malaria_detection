@@ -1,0 +1,59 @@
+# Model weights (keep code only, not trained models)
+*.pt
+weights/
+
+# Large result directories
+results/
+test_results_lacuna/
+kaggle_results/
+other_files/
+
+# CSV results and logs
+*.csv
+runs/
+*.log
+
+# Dataset files (too large)
+kaggle_datasets/
+sliced_dataset/
+*.jpg
+*.png
+*.jpeg
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Large cached files
+.cache/
+*.cache
