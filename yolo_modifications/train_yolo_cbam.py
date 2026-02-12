@@ -39,6 +39,11 @@ import custom_modules
 print(f"✅ Custom CBAM modules loaded from: {YOLO_MODS_PATH}")
 print(f"   Available modules: {list(custom_modules.CBAM_MODULES.keys())}")
 
+# Inject custom modules into ultralytics namespace for YOLO parser
+from ultralytics.nn import modules as ultralytics_modules
+for module_name, module_class in custom_modules.CBAM_MODULES.items():
+    setattr(ultralytics_modules, module_name, module_class)
+
 from ultralytics import YOLO
 
 
