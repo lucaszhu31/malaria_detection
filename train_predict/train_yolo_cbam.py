@@ -31,7 +31,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 # Add yolo_modifications folder to Python path
-YOLO_MODS_PATH = Path(__file__).parent.resolve()
+YOLO_MODS_PATH = (Path(__file__).parent.parent / 'yolo_modifications').resolve()
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
 # Import custom modules - this registers C2f_CBAM, SPPF_CBAM, etc.

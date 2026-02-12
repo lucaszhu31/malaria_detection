@@ -245,6 +245,8 @@ if __name__ == "__main__":
     # Trained model from training (automatically saved here)
     MODEL_PATH = '/content/drive/MyDrive/science_fair_2026/kaggle_results/cbam_experiments/yolo11m_cbam_sahi_1024px/weights/best.pt'
     
+    # Single image or batch folder (choose one, set other to None)
+    SINGLE_IMAGE = '/content/drive/MyDrive/test_data/slide_001.jpg'  # TODO: Update to your test slide
     BATCH_FOLDER = None  # Example: '/content/drive/MyDrive/test_data/full_slides/'
     
     # SAHI parameters (keep these - match your training settings)
