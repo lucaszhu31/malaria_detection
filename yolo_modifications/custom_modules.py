@@ -39,10 +39,9 @@ class C2f_CBAM(C2f):
         torch.Size([1, 128, 80, 80])
     """
     
-    def __init__(self, c1, c2, shortcut=False, n=1, g=1, e=0.5, cbam_ratio=16, cbam_kernel=7):
-        # Initialize parent C2f with standard parameters
-        from ultralytics.nn.modules.block import C2f as OriginalC2f
-        OriginalC2f.__init__(self, c1, c2, n, shortcut, g, e)
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5, cbam_ratio=16, cbam_kernel=7):
+        # Initialize parent C2f with proper parameter order matching YOLO standard
+        super().__init__(c1, c2, n, shortcut, g, e)
         # Add CBAM block after C2f operations
         self.cbam = CBAM(c2, ratio=cbam_ratio, kernel_size=cbam_kernel)
     

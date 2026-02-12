@@ -12,11 +12,11 @@ backbone:
   # [from, repeats, module, args]
   - [-1, 1, Conv, [64, 3, 2]]  # 0
   - [-1, 1, Conv, [128, 3, 2]]  # 1
-  - [-1, 2, C2f_CBAM, [128, True]]  # 2
+  - [-1, 2, C2f_CBAM, [128]]  # 2
   - [-1, 1, Conv, [256, 3, 2]]  # 3
-  - [-1, 2, C2f_CBAM, [256, True]]  # 4
+  - [-1, 2, C2f_CBAM, [256]]  # 4
   - [-1, 1, Conv, [512, 3, 2]]  # 5
-  - [-1, 2, C2f_CBAM, [512, True]]  # 6
+  - [-1, 2, C2f_CBAM, [512]]  # 6
   - [-1, 1, Conv, [512, 3, 2]]  # 7
   - [-1, 2, C2f_CBAM, [512, True]]  # 8  ← CBAM attention added!
   - [-1, 1, SPPF_CBAM, [512, 5]]  # 9  ← CBAM attention added to SPPF!
@@ -25,18 +25,18 @@ backbone:
 head:
   - [-1, 1, nn.Upsample, [None, 2, 'nearest']]  # 10
   - [[-1, 6], 1, Concat, [1]]  # 11
-  - [-1, 2, C2f_CBAM, [512, False]]  # 12
+  - [-1, 2, C2f_CBAM, [512]]  # 12
 
   - [-1, 1, nn.Upsample, [None, 2, 'nearest']]  # 13
   - [[-1, 4], 1, Concat, [1]]  # 14
-  - [-1, 2, C2f_CBAM, [256, False]]  # 15
+  - [-1, 2, C2f_CBAM, [256]]  # 15
 
   - [-1, 1, Conv, [256, 3, 2]]  # 16
   - [[-1, 12], 1, Concat, [1]]  # 17
-  - [-1, 2, C2f_CBAM, [512, False]]  # 18
+  - [-1, 2, C2f_CBAM, [512]]  # 18
 
   - [-1, 1, Conv, [512, 3, 2]]  # 19
   - [[-1, 9], 1, Concat, [1]]  # 20
-  - [-1, 2, C2f_CBAM, [512, False]]  # 21
+  - [-1, 2, C2f_CBAM, [512]]  # 21
 
   - [[15, 18, 21], 1, Detect, [nc]]  # 22
