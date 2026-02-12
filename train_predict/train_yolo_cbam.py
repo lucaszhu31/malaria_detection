@@ -292,6 +292,12 @@ def train_yolo_cbam(
         verbose=True,
         plots=True,
         
+        # Optimizer (Force SGD for consistency)
+        optimizer='SGD',   # SGD instead of 'auto' for reproducibility
+        lr0=0.01,          # Initial learning rate
+        momentum=0.937,    # Momentum for SGD
+        weight_decay=0.0005,  # L2 regularization
+        
         # Augmentation (Microscopy-optimized)
         hsv_h=0.015,       # Hue shift (±1.5%, minimal for Giemsa stain)
         hsv_s=0.7,         # Saturation (±70%, handles stain intensity variation)
@@ -347,7 +353,7 @@ if __name__ == "__main__":
     SLICED_OUTPUT_DIR = '/content/drive/MyDrive/kaggle_datasets/sliced_dataset'  # Where to save patches
     
     # Training parameters (OK to keep as-is)
-    EPOCHS = 100
+    EPOCHS = 40
     EXPERIMENT_NAME = 'yolo11m_cbam_sahi_1024px'
     
     # Whether to re-slice dataset (set False if already sliced)
