@@ -354,8 +354,8 @@ if __name__ == "__main__":
     # =====================================================================
     
   
-    ORIGINAL_DATA_YAML = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/data.yaml'
-    PROJECT_DIR = '/content/drive/MyDrive/science_fair_2026/kaggle_results/cbam_experiments'
+    ORIGINAL_DATA_YAML = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed/data.yaml'
+    PROJECT_DIR = '/content/drive/MyDrive/kaggle_results/cbam_experiments'
     
     # Slicing parameters (OK to keep as-is)
     SLICE_SIZE = 1024       # Patch size (matches training imgsz)
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     EXPERIMENT_NAME = 'yolo11m_cbam_sahi_1024px'
     
     # Whether to re-slice dataset (set False if already sliced)
-    FORCE_RESLICE = False
+    FORCE_RESLICE = True  # Set to True on first run to create sliced dataset
     
     # =====================================================================
     # PIPELINE EXECUTION
