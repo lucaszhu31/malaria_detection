@@ -361,7 +361,7 @@ if __name__ == "__main__":
     
     # Slicing parameters (OK to keep as-is)
     SLICE_SIZE = 1024       # Patch size (matches training imgsz)
-    OVERLAP_RATIO = 0.2     # 20% overlap between patches
+    OVERLAP_RATIO = 0.4     # 40% overlap (increased from 20% to preserve parasites on boundaries)
     SLICED_OUTPUT_DIR = '/tmp/sliced_dataset'  # Temporary local storage for patches
     
     # Training parameters (OK to keep as-is)
