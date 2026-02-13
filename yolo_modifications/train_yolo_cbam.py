@@ -88,7 +88,9 @@ def slice_dataset_with_sahi(
     with open(source_data_yaml, 'r') as f:
         data_config = yaml.safe_load(f)
     
-    dataset_path = Path(data_config.get('path', '.'))
+    # IMPORTANT: Use the directory where the data.yaml is located, not the 'path' field
+    # This ensures we read from /tmp/malaria_data/yolov8_transformed/ not the old Google Drive path
+    dataset_path = Path(source_data_yaml).parent
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
@@ -354,13 +356,13 @@ if __name__ == "__main__":
     # =====================================================================
     
   
-    ORIGINAL_DATA_YAML = '/content/drive/MyDrive/kaggle_datasets/yolov8_transformed/data.yaml'
-    PROJECT_DIR = '/content/drive/MyDrive/kaggle_results/cbam_experiments'
+    ORIGINAL_DATA_YAML = '/tmp/malaria_data/yolov8_transformed/data.yaml'
+    PROJECT_DIR = '/content/drive/MyDrive/kaggle_results/cbam_experiments'  # Results saved to Google Drive
     
     # Slicing parameters (OK to keep as-is)
     SLICE_SIZE = 1024       # Patch size (matches training imgsz)
     OVERLAP_RATIO = 0.2     # 20% overlap between patches
-    SLICED_OUTPUT_DIR = '/content/drive/MyDrive/kaggle_datasets/sliced_dataset'  # Where to save patches
+    SLICED_OUTPUT_DIR = '/tmp/sliced_dataset'  # Temporary local storage for patches
     
     # Training parameters (OK to keep as-is)
     EPOCHS = 40
