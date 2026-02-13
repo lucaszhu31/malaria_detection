@@ -1,12 +1,11 @@
 """
-YOLO11m with CBAM + Optional CE_FPN + SAHI Integration
-Science Fair 2026 - Complete Training Pipeline
+YOLO11m with CBAM + SAHI Integration
+Science Fair 2026 - Training Pipeline
 
 Single script that:
 1. Trains YOLO11m with CBAM (Channel + Spatial Attention)
-2. Optionally integrates CE_FPN (Contrast Enhancement) if available
-3. Uses SAHI for full blood smear slide predictions
-4. Handles data slicing and inference on patches
+2. Uses SAHI for full blood smear slide predictions
+3. Handles data slicing and inference on patches
 """
 
 import sys
@@ -26,42 +25,26 @@ sys.path.insert(0, str(YOLO_MODS_PATH))
 from ultralytics import YOLO
 from ultralytics.nn import tasks
 
-# Import CBAM (always available)
+# Import CBAM
 import custom_modules
 CBAM = custom_modules.CBAM if hasattr(custom_modules, 'CBAM') else None
 setattr(tasks, 'CBAM', CBAM)
-print(f"✅ Registered CBAM module")
-
-# Try to import CE_FPN (optional)
-CE_FPN = None
-try:
-    from ce_fpn import ContrastEnhancedFPN
-    CE_FPN = ContrastEnhancedFPN
-    setattr(tasks, 'CE_FPN', CE_FPN)
-    print(f"✅ Registered CE_FPN module (optional)")
-except ImportError:
-    print(f"⚠️  CE_FPN not available (using CBAM only)")
+print(f"Registered CBAM module")
 
 
 def train_model(data_yaml, epochs=100, imgsz=1024, device=0, project=None, name='malaria_detection'):
-    """Train with CBAM (always) + CE_FPN (if available)"""
+    """Train with CBAM"""
     
     print("\n" + "="*70)
-    print("YOLO11m Training with CBAM + Optional CE_FPN")
+    print("YOLO11m Training with CBAM")
     print("="*70)
     
-    # Choose model based on CE_FPN availability
-    if CE_FPN is not None:
-        model_path = YOLO_MODS_PATH / 'yolo11m-fpn-cbam-combined.yaml'
-        model_name = "CBAM + CE_FPN (Combined)"
-    else:
-        model_path = YOLO_MODS_PATH / 'yolo11m-cbam.yaml'
-        model_name = "CBAM (Attention Only)"
+    model_path = YOLO_MODS_PATH / 'yolo11m-cbam.yaml'
     
     if not model_path.exists():
         raise FileNotFoundError(f"Model not found: {model_path}")
     
-    print(f"Model: {model_name}")
+    print(f"Model: CBAM (Channel + Spatial Attention)")
     print(f"Config: {model_path.name}")
     print(f"Data: {data_yaml}")
     print(f"Epochs: {epochs}, Image Size: {imgsz}px")
@@ -190,7 +173,14 @@ if __name__ == "__main__":
     
     # Step 1: Train on SAHI-sliced dataset
     print("\n" + "="*70)
-    print("WORKFLOW: SAHI Slices → Train CBAM+CE_FPN → Full-Slide Inference")
+    print("WORKFLOW: SAHI Slices -> Train CBAM -> Full-Slide Inference")
+    print("="*70)
+    print("\nSTEP 1: TRAINING MODEL on pre-sliced SAHI patches")
+    print("="*70)
+    
+    # Step 1: Train on SAHI-sliced dataset
+    print("\n" + "="*70)
+    print("WORKFLOW: SAHI Slices -> Train CBAM -> Full-Slide Inference")
     print("="*70)
     print("\nSTEP 1: TRAINING MODEL on pre-sliced SAHI patches")
     print("="*70)
@@ -220,11 +210,11 @@ if __name__ == "__main__":
             Path(RESULTS_DIR) / 'malaria_detector' / 'sahi_predictions',
         )
     else:
-        print(f"⚠️  Test slides folder not found: {slide_folder}")
-        print("   Skipping full-slide inference (optional)")
+        print(f"Test slides folder not found: {slide_folder}")
+        print("Skipping full-slide inference (optional)")
     
     print("\n" + "="*70)
-    print("✅ COMPLETE!")
+    print("COMPLETE!")
     print("="*70)
     print(f"Training results: {RESULTS_DIR}/malaria_detector/")
     print(f"Best weights: {best_weights}")
