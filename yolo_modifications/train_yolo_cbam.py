@@ -99,15 +99,17 @@ def slice_dataset_with_sahi(
     print("="*70 + "\n")
     
     # Process each split (train, val, test)
+    total_patches = 0  # Initialize outside loop to prevent UnboundLocalError
+    
     for split in ['train', 'val', 'test']:
         if split not in data_config:
             continue
             
         print(f"📍 Slicing {split} set...")
         
-        # Paths
-        source_images = dataset_path / data_config[split].replace('images/', '')
-        source_labels = source_images.parent.parent / 'labels' / split
+        # Paths - data_config[split] is like 'images/train', so we join directly
+        source_images = dataset_path / data_config[split]
+        source_labels = dataset_path / data_config[split].replace('images/', 'labels/')
         
         output_images = output_path / 'images' / split
         output_labels = output_path / 'labels' / split
@@ -124,8 +126,6 @@ def slice_dataset_with_sahi(
         
         print(f"   Found {len(image_files)} full slide images")
         print(f"   Slicing into {slice_size}×{slice_size} patches...\n")
-        
-        total_patches = 0
         
         for img_path in tqdm(image_files, desc=f"   {split}"):
             # Convert YOLO labels to COCO format for SAHI
