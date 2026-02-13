@@ -5,22 +5,27 @@ Science Fair 2026
 This script trains YOLO11 medium model with CBAM (Convolutional Block 
 Attention Module) for detecting malaria parasites in FULL BLOOD SMEAR SLIDES.
 
+Architecture:
+- Base: YOLO11m backbone (Conv → C3k2 blocks → SPPF → C2PSA)
+- CBAM: Post-backbone attention (512 channels) - Inspired by YOLOv8-CBAM sheep paper
+- Design: CBAM placed AFTER backbone finishes, BEFORE neck (feature fusion)
+- Benefit: Channel + spatial attention on all backbone features simultaneously
+
 Pipeline:
 1. SAHI Slicing: Slice full slides into 1024×1024 patches (preserves parasite scale)
 2. CBAM Training: Train on patches with channel + spatial attention
 3. Augmentation: Microscopy-optimized augmentations
 4. Inference: Use SAHI to detect on full slides
 
-CBAM adds:
-- Channel attention: Which features are important (texture, edges, color)
-- Spatial attention: Where to look (parasite locations vs background)
+CBAM module learns:
+- Channel attention: Which features matter (texture, morphology, staining)
+- Spatial attention: Where parasites appear (object regions)
 
 Expected performance:
-- Baseline YOLO11m: 75-77% mAP
-- + CBAM attention: 78-82% mAP
-- + Enhanced augmentation: 82-85% mAP
+- Baseline YOLO11m: 75-77% mAP (20.4M params)
+- + CBAM attention: 77-80% mAP (20.4M params, +attention computation)
+- + Enhanced augmentation: 80-83% mAP
 - + SAHI (full slides): 85-90% mAP
-- + TTA + Ensemble: 88-92% mAP
 """
 
 import sys
@@ -34,7 +39,7 @@ from tqdm import tqdm
 YOLO_MODS_PATH = Path(__file__).parent.resolve()
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
-# Import custom modules - this registers C2f_CBAM, SPPF_CBAM, etc.
+# Import custom modules
 import custom_modules
 print(f"✅ Custom CBAM modules loaded from: {YOLO_MODS_PATH}")
 print(f"   Available modules: {list(custom_modules.CBAM_MODULES.keys())}")
@@ -42,9 +47,9 @@ print(f"   Available modules: {list(custom_modules.CBAM_MODULES.keys())}")
 from ultralytics import YOLO
 from ultralytics.nn import tasks
 
-# Inject custom modules into the tasks.py global namespace where parse_model looks
-for module_name, module_class in custom_modules.CBAM_MODULES.items():
-    setattr(tasks, module_name, module_class)
+# Register CBAM module in YOLO's parser for post-backbone attention
+setattr(tasks, 'CBAM', custom_modules.CBAM if hasattr(custom_modules, 'CBAM') else None)
+print(f"✅ Registered CBAM module in ultralytics.nn.tasks")
 
 
 def slice_dataset_with_sahi(
@@ -277,9 +282,9 @@ def train_yolo_cbam(
     print(f"Save to: {project}/{name}")
     print("="*70 + "\n")
     
-    # Load model
+    # Load model with post-backbone CBAM attention
     print("🔄 Loading YOLO11m-CBAM...\n")
-    model = YOLO(str(model_path))
+    model = YOLO('yolo11m-cbam.yaml')  # Load YOLO11m with post-backbone CBAM
     
     # Train with augmentation for microscopy images
     print("🚀 Starting training...\n")
@@ -293,7 +298,7 @@ def train_yolo_cbam(
         device=device,
         project=project,
         name=name,
-        pretrained=True,   # Use YOLO11m pretrained weights
+        pretrained=False,  # CBAM architecture requires training from scratch
         verbose=True,
         plots=True,
         

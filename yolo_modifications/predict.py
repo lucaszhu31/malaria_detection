@@ -30,6 +30,14 @@ import cv2
 YOLO_MODS_PATH = Path(__file__).parent.resolve()
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
+# Register custom CBAM modules in YOLO's parser
+import custom_modules
+from ultralytics.nn import tasks
+
+for module_name, module_class in custom_modules.CBAM_MODULES.items():
+    setattr(tasks, module_name, module_class)
+    globals()[module_name] = module_class
+
 
 def predict_full_slide_sahi(
     model_path,

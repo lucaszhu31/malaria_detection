@@ -11,15 +11,19 @@ from ultralytics.nn.modules import C2f, Conv, SPPF, Bottleneck
 from se_block_cbam import CBAM
 
 
-class C2f_CBAM(C2f):
+class C2f_CBAM(nn.Module):
     """
-    C2f module with CBAM (Channel + Spatial Attention)
+    C2f module with CBAM (Channel + Spatial Attention) - Wrapper Pattern
     
-    Extends YOLO's C2f (CSP Bottleneck with 2 convolutions) by adding
-    CBAM attention after the standard operations. This allows the model
-    to learn:
-    1. Which feature channels are important for parasite detection
-    2. Which spatial locations to focus on
+    Wraps YOLO's standard C2f module and adds CBAM attention after it.
+    
+    IMPORTANT: The YAML format is [c2, shortcut] when using with repeats.
+    The repeats value from YAML becomes the 'n' parameter:
+    
+    YAML: [-1, 3, C2f_CBAM, [128, True]]
+    Becomes: C2f_CBAM(c1=<prev>, c2=128, n=3, shortcut=True)
+    
+    This wrapper matches C2f's signature exactly: (c1, c2, n=1, shortcut=False, g=1, e=0.5)
     
     Args:
         c1 (int): Input channels
@@ -28,20 +32,12 @@ class C2f_CBAM(C2f):
         shortcut (bool): Whether to use shortcut connection (default: False)
         g (int): Groups for convolution (default: 1)
         e (float): Expansion ratio (default: 0.5)
-        cbam_ratio (int): CBAM channel reduction ratio (default: 16)
-        cbam_kernel (int): CBAM spatial convolution kernel size (default: 7)
-    
-    Example:
-        >>> layer = C2f_CBAM(64, 128, n=2, shortcut=True)
-        >>> x = torch.randn(1, 64, 80, 80)
-        >>> out = layer(x)
-        >>> out.shape
-        torch.Size([1, 128, 80, 80])
     """
     
-    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
-        # Initialize parent C2f with standard YOLO parameters
-        super().__init__(c1, c2, n, shortcut, g, e)
+    def __init__(self, c1: int, c2: int, n: int = 1, shortcut: bool = False, g: int = 1, e: float = 0.5):
+        super().__init__()
+        # Explicitly create C2f instance with parameters in correct order
+        self.c2f = C2f(c1, c2, n, shortcut, g, e)
         # Add CBAM block after C2f operations
         self.cbam = CBAM(c2, ratio=16, kernel_size=7)
     
@@ -55,8 +51,8 @@ class C2f_CBAM(C2f):
         Returns:
             Attention-refined tensor (batch, c2, h, w)
         """
-        # Run standard C2f forward pass
-        x = super().forward(x)
+        # Run C2f forward pass
+        x = self.c2f(x)
         
         # Apply CBAM attention (learn channel + spatial importance)
         x = self.cbam(x)
