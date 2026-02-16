@@ -18,10 +18,9 @@ class YOLOv11TargetWrapper(torch.nn.Module):
         return self.model(x)[0].sum(dim=1)
 
 # --- CONFIGURATION ---
-MODEL_PATH = "/content/drive/MyDrive/science_fair_2026/kaggle_results/r_kaggle11/malaria_results_highres/weights/best.pt"
-INPUT_DIR = "/content/drive/MyDrive/kaggle_datasets/test_imgs/sample2"
-OUTPUT_DIR = "/content/drive/MyDrive/science_fair_2026/kaggle_results/r_kaggle11/malaria_results_highres/gradcam_analysis"
-
+MODEL_PATH =  r'/content/drive/MyDrive/kaggle_results/yolo11m_baseline_sahi/yolo11m_baseline_sahi/weights/best.pt'
+INPUT_DIR = "/content/drive/MyDrive/kaggle_datasets/test_imgs/sample5"
+OUTPUT_DIR = "/content/drive/MyDrive/kaggle_datasets/test_imgs/gradcam_results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

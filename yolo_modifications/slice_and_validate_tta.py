@@ -151,83 +151,67 @@ def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
                 with open(label_path, 'r') as f:
                     labels = f.readlines()
             
-            # ADAPTIVE SLICING: Check if image is small enough to process whole
-            if h < 2048 and w < 2048:
-                # Small image - resize and save as single image (no slicing)
-                img_resized = cv2.resize(img, (slice_size, slice_size))
-                
-                # Labels remain in normalized format (already 0-1), no conversion needed
-                if labels:  # Only save if has labels
-                    img_name = f"{img_path.stem}"
-                    img_path_out = output_path / 'images' / split / f"{img_name}.jpg"
-                    cv2.imwrite(str(img_path_out), img_resized)
+            # Slice image and labels
+            patch_id = 0
+            for y in range(0, h, stride):
+                for x in range(0, w, stride):
+                    y_end = min(y + slice_size, h)
+                    x_end = min(x + slice_size, w)
                     
-                    # Copy labels as-is (already normalized 0-1)
-                    label_path_out = output_path / 'labels' / split / f"{img_name}.txt"
-                    with open(label_path_out, 'w') as f:
-                        f.writelines(labels)
-            else:
-                # Large image - slice into patches
-                patch_id = 0
-                for y in range(0, h, stride):
-                    for x in range(0, w, stride):
-                        y_end = min(y + slice_size, h)
-                        x_end = min(x + slice_size, w)
+                    # Extract patch
+                    patch = img[y:y_end, x:x_end]
+                    
+                    # Pad if needed
+                    if patch.shape[0] < slice_size or patch.shape[1] < slice_size:
+                        patch = cv2.copyMakeBorder(
+                            patch, 0, slice_size - patch.shape[0],
+                            0, slice_size - patch.shape[1],
+                            cv2.BORDER_CONSTANT, value=[0, 0, 0]
+                        )
+                    
+                    # Convert and save labels for this patch
+                    patch_labels = []
+                    for label in labels:
+                        parts = label.strip().split()
+                        if len(parts) < 5:
+                            continue
+                        class_id = int(parts[0])
+                        cx, cy, bw, bh = map(float, parts[1:5])
                         
-                        # Extract patch
-                        patch = img[y:y_end, x:x_end]
+                        # Convert normalized coords to absolute
+                        x_center = cx * w
+                        y_center = cy * h
+                        box_w = bw * w
+                        box_h = bh * h
                         
-                        # Pad if needed
-                        if patch.shape[0] < slice_size or patch.shape[1] < slice_size:
-                            patch = cv2.copyMakeBorder(
-                                patch, 0, slice_size - patch.shape[0],
-                                0, slice_size - patch.shape[1],
-                                cv2.BORDER_CONSTANT, value=[0, 0, 0]
-                            )
+                        # Check if box center is in this patch (assigns each box to exactly ONE patch)
+                        if (x <= x_center < x_end) and (y <= y_center < y_end):
+                            # Convert to patch-relative normalized coords
+                            new_x_center = (x_center - x) / slice_size
+                            new_y_center = (y_center - y) / slice_size
+                            new_w = box_w / slice_size
+                            new_h = box_h / slice_size
+                            
+                            # Clip to [0, 1]
+                            new_x_center = max(0, min(1, new_x_center))
+                            new_y_center = max(0, min(1, new_y_center))
+                            new_w = max(0, min(1, new_w))
+                            new_h = max(0, min(1, new_h))
+                            
+                            patch_labels.append(f"{class_id} {new_x_center} {new_y_center} {new_w} {new_h}\n")
+                    
+                    # Only save patches with labels (match training behavior)
+                    if patch_labels:
+                        patch_name = f"{img_path.stem}_patch{patch_id}"
+                        patch_path = output_path / 'images' / split / f"{patch_name}.jpg"
+                        cv2.imwrite(str(patch_path), patch)
                         
-                        # Convert and save labels for this patch
-                        patch_labels = []
-                        for label in labels:
-                            parts = label.strip().split()
-                            if len(parts) < 5:
-                                continue
-                            class_id = int(parts[0])
-                            cx, cy, bw, bh = map(float, parts[1:5])
-                            
-                            # Convert normalized coords to absolute
-                            x_center = cx * w
-                            y_center = cy * h
-                            box_w = bw * w
-                            box_h = bh * h
-                            
-                            # Check if box center is in this patch (assigns each box to exactly ONE patch)
-                            if (x <= x_center < x_end) and (y <= y_center < y_end):
-                                # Convert to patch-relative normalized coords
-                                new_x_center = (x_center - x) / slice_size
-                                new_y_center = (y_center - y) / slice_size
-                                new_w = box_w / slice_size
-                                new_h = box_h / slice_size
-                                
-                                # Clip to [0, 1]
-                                new_x_center = max(0, min(1, new_x_center))
-                                new_y_center = max(0, min(1, new_y_center))
-                                new_w = max(0, min(1, new_w))
-                                new_h = max(0, min(1, new_h))
-                                
-                                patch_labels.append(f"{class_id} {new_x_center} {new_y_center} {new_w} {new_h}\n")
+                        # Save patch labels
+                        label_path_out = output_path / 'labels' / split / f"{patch_name}.txt"
+                        with open(label_path_out, 'w') as f:
+                            f.writelines(patch_labels)
                         
-                        # Only save patches with labels (match training behavior)
-                        if patch_labels:
-                            patch_name = f"{img_path.stem}_patch{patch_id}"
-                            patch_path = output_path / 'images' / split / f"{patch_name}.jpg"
-                            cv2.imwrite(str(patch_path), patch)
-                            
-                            # Save patch labels
-                            label_path_out = output_path / 'labels' / split / f"{patch_name}.txt"
-                            with open(label_path_out, 'w') as f:
-                                f.writelines(patch_labels)
-                            
-                            patch_id += 1
+                        patch_id += 1
     
     # Create data.yaml (YOLO requires 'train' key even for validation only)
     data_yaml = {
