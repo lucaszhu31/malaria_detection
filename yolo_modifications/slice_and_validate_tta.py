@@ -11,8 +11,66 @@ import sys
 from pathlib import Path
 import yaml
 import cv2
+import shutil
 from tqdm import tqdm
 from ultralytics import YOLO
+
+
+def copy_dataset_to_tmp(source_dir, tmp_dir):
+    """Copy dataset from Google Drive to local /tmp/ for faster processing"""
+    
+    print(f"\n{'='*70}")
+    print("COPYING DATASET TO LOCAL SSD")
+    print(f"{'='*70}")
+    print(f"Source: {source_dir}")
+    print(f"Target: {tmp_dir}")
+    print(f"{'='*70}\n")
+    
+    source_path = Path(source_dir)
+    tmp_path = Path(tmp_dir)
+    
+    # Remove existing tmp dataset if present
+    if tmp_path.exists():
+        print(f"Removing existing {tmp_path}...")
+        shutil.rmtree(tmp_path)
+    
+    # Create tmp directory structure
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    
+    # Copy only validation split (we only need it for validation)
+    val_images_src = source_path / 'images' / 'val'
+    val_labels_src = source_path / 'labels' / 'val'
+    
+    if not val_images_src.exists():
+        print(f"ERROR: Validation images not found at {val_images_src}")
+        sys.exit(1)
+    
+    # Count files for progress
+    val_images = list(val_images_src.glob('*.jpg')) + list(val_images_src.glob('*.png'))
+    val_labels = list(val_labels_src.glob('*.txt'))
+    
+    print(f"Copying {len(val_images)} validation images...")
+    print(f"Copying {len(val_labels)} validation labels...\n")
+    
+    # Copy validation images
+    val_images_dst = tmp_path / 'images' / 'val'
+    val_images_dst.mkdir(parents=True, exist_ok=True)
+    
+    for img in tqdm(val_images, desc="Copying images"):
+        shutil.copy2(img, val_images_dst / img.name)
+    
+    # Copy validation labels
+    val_labels_dst = tmp_path / 'labels' / 'val'
+    val_labels_dst.mkdir(parents=True, exist_ok=True)
+    
+    for lbl in tqdm(val_labels, desc="Copying labels"):
+        shutil.copy2(lbl, val_labels_dst / lbl.name)
+    
+    print(f"\n{'='*70}")
+    print(f"Dataset copied to {tmp_path}")
+    print(f"{'='*70}\n")
+    
+    return str(tmp_path)
 
 
 def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
@@ -37,20 +95,16 @@ def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
     
     stride = int(slice_size * (1 - overlap_ratio))
     
-    # Count total images for progress tracking
-    total_images = 0
-    for split in ['train', 'val']:
-        img_dir = input_path / 'images' / split
-        if img_dir.exists():
-            total_images += len(list(img_dir.glob('*.jpg')) + list(img_dir.glob('*.png')))
+    # Count total images for progress tracking (validation only)
+    val_img_dir = input_path / 'images' / 'val'
+    total_images = len(list(val_img_dir.glob('*.jpg')) + list(val_img_dir.glob('*.png'))) if val_img_dir.exists() else 0
     
-    print(f"Total images to slice: {total_images}")
+    print(f"Total validation images to slice: {total_images}")
     print(f"Estimated patches per image: ~{((1024 // stride) ** 2)}")
     print(f"Total estimated patches: ~{total_images * ((1024 // stride) ** 2)}\n")
     
-    # Process train and val splits
-    processed = 0
-    for split in ['train', 'val']:
+    # Process validation split only (no training needed for validation)
+    for split in ['val']:
         img_dir = input_path / 'images' / split
         label_dir = input_path / 'labels' / split
         
@@ -137,10 +191,9 @@ def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
                     
                     patch_id += 1
     
-    # Create data.yaml
+    # Create data.yaml (validation only, no train path needed)
     data_yaml = {
         'path': str(output_path),
-        'train': 'images/train',
         'val': 'images/val',
         'nc': 2,
         'names': {0: 'Parasite', 1: 'WBC'}
@@ -221,8 +274,11 @@ def validate_with_tta(model_path, data_yaml, imgsz=1024):
 if __name__ == "__main__":
     # ==================== CONFIGURATION ====================
     
-    # Input: Original yolov8_transformed dataset
+    # Input: Original yolov8_transformed dataset (Google Drive - slow)
     ORIGINAL_DATASET = r'/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b'
+    
+    # Temporary copy on local SSD (for fast reading)
+    TMP_DATASET = r'/tmp/original_dataset'
     
     # Output: Sliced dataset on local SSD (fast storage)
     SLICED_DATASET = r'/tmp/sliced_dataset'
@@ -249,17 +305,24 @@ if __name__ == "__main__":
         print(f"ERROR: Model not found: {MODEL_PATH}")
         sys.exit(1)
     
-    # Step 2: Slice dataset
-    print("\nSTEP 1: Slicing dataset...")
+    # Step 2: Copy dataset to local SSD
+    print("\nSTEP 1: Copying dataset to local SSD...")
+    tmp_dataset_path = copy_dataset_to_tmp(
+        source_dir=ORIGINAL_DATASET,
+        tmp_dir=TMP_DATASET,
+    )
+    
+    # Step 3: Slice dataset
+    print("\nSTEP 2: Slicing dataset...")
     data_yaml = slice_dataset(
-        input_dir=ORIGINAL_DATASET,
+        input_dir=tmp_dataset_path,  # Read from local copy (fast)
         output_dir=SLICED_DATASET,
         slice_size=SLICE_SIZE,
         overlap_ratio=OVERLAP_RATIO,
     )
     
-    # Step 3: Run validation with TTA
-    print("\nSTEP 2: Running validation with TTA...")
+    # Step 4: Run validation with TTA
+    print("\nSTEP 3: Running validation with TTA...")
     results = validate_with_tta(
         model_path=MODEL_PATH,
         data_yaml=data_yaml,
@@ -269,7 +332,8 @@ if __name__ == "__main__":
     print("\n" + "="*70)
     print("ALL STEPS COMPLETE")
     print("="*70)
-    print(f"Sliced dataset saved to: {SLICED_DATASET}")
+    print(f"Temporary dataset: {TMP_DATASET} (can be deleted)")
+    print(f"Sliced dataset: {SLICED_DATASET} (can be deleted)")
     print(f"Validation results saved to: /content/drive/MyDrive/kaggle_results/yolo11m_final/validation_tta/")
     print(f"Metrics displayed above")
     print("="*70 + "\n")
