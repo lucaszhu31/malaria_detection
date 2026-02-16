@@ -29,31 +29,7 @@ def copy_dataset_to_tmp(source_dir, tmp_dir):
     source_path = Path(source_dir)
     tmp_path = Path(tmp_dir)
     
-    # Check if dataset already exists in /tmp/
-    val_images_dst = tmp_path / 'images' / 'val'
-    val_labels_dst = tmp_path / 'labels' / 'val'
-    
-    if val_images_dst.exists() and val_labels_dst.exists():
-        img_count = len(list(val_images_dst.glob('*.jpg')) + list(val_images_dst.glob('*.png')))
-        lbl_count = len(list(val_labels_dst.glob('*.txt')))
-        
-        if img_count > 0 and lbl_count > 0:
-            print(f"✓ Dataset already exists in {tmp_path}")
-            print(f"  - {img_count} images found")
-            print(f"  - {lbl_count} labels found")
-            print(f"  Skipping copy (delete {tmp_path} to force re-copy)")
-            print(f"{'='*70}\n")
-            return str(tmp_path)
-    
-    # Remove existing tmp dataset if incomplete/corrupted
-    if tmp_path.exists():
-        print(f"Removing existing incomplete dataset at {tmp_path}...")
-        shutil.rmtree(tmp_path)
-    
-    # Create tmp directory structure
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    
-    # Copy only validation split (we only need it for validation)
+    # Get source file counts
     val_images_src = source_path / 'images' / 'val'
     val_labels_src = source_path / 'labels' / 'val'
     
@@ -61,22 +37,53 @@ def copy_dataset_to_tmp(source_dir, tmp_dir):
         print(f"ERROR: Validation images not found at {val_images_src}")
         sys.exit(1)
     
-    # Count files for progress
-    val_images = list(val_images_src.glob('*.jpg')) + list(val_images_src.glob('*.png'))
-    val_labels = list(val_labels_src.glob('*.txt'))
+    src_img_count = len(list(val_images_src.glob('*.jpg')) + list(val_images_src.glob('*.png')))
+    src_lbl_count = len(list(val_labels_src.glob('*.txt')))
     
-    print(f"Copying {len(val_images)} validation images...")
-    print(f"Copying {len(val_labels)} validation labels...\n")
+    print(f"Source dataset: {src_img_count} images, {src_lbl_count} labels")
+    
+    # Check if dataset already exists in /tmp/
+    val_images_dst = tmp_path / 'images' / 'val'
+    val_labels_dst = tmp_path / 'labels' / 'val'
+    
+    if val_images_dst.exists() and val_labels_dst.exists():
+        tmp_img_count = len(list(val_images_dst.glob('*.jpg')) + list(val_images_dst.glob('*.png')))
+        tmp_lbl_count = len(list(val_labels_dst.glob('*.txt')))
+        
+        print(f"Cached dataset: {tmp_img_count} images, {tmp_lbl_count} labels")
+        
+        # Check if counts match (source dataset unchanged)
+        if tmp_img_count == src_img_count and tmp_lbl_count == src_lbl_count:
+            print(f"\n✓ Dataset already exists and matches source")
+            print(f"  Skipping copy (delete {tmp_path} to force re-copy)")
+            print(f"{'='*70}\n")
+            return str(tmp_path)
+        else:
+            print(f"\n⚠ Dataset changed! File counts don't match.")
+            print(f"  Removing old cache and re-copying...")
+    
+    # Remove existing tmp dataset (either doesn't exist, incomplete, or outdated)
+    if tmp_path.exists():
+        print(f"Removing existing dataset at {tmp_path}...")
+        shutil.rmtree(tmp_path)
+    
+    # Create tmp directory structure
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    
+    print(f"\nCopying {src_img_count} validation images...")
+    print(f"Copying {src_lbl_count} validation labels...\n")
     
     # Copy validation images
     val_images_dst.mkdir(parents=True, exist_ok=True)
     
+    val_images = list(val_images_src.glob('*.jpg')) + list(val_images_src.glob('*.png'))
     for img in tqdm(val_images, desc="Copying images"):
         shutil.copy2(img, val_images_dst / img.name)
     
     # Copy validation labels
     val_labels_dst.mkdir(parents=True, exist_ok=True)
     
+    val_labels = list(val_labels_src.glob('*.txt'))
     for lbl in tqdm(val_labels, desc="Copying labels"):
         shutil.copy2(lbl, val_labels_dst / lbl.name)
     
@@ -290,7 +297,7 @@ if __name__ == "__main__":
     # ==================== CONFIGURATION ====================
     
     # Input: Original yolov8_transformed dataset (Google Drive - slow)
-    ORIGINAL_DATASET = r'/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b'
+    ORIGINAL_DATASET = r'/content/drive/MyDrive/kaggle_datasets/yolov8_transformed'
     
     # Temporary copy on local SSD (for fast reading)
     TMP_DATASET = r'/tmp/original_dataset'
@@ -299,7 +306,7 @@ if __name__ == "__main__":
     SLICED_DATASET = r'/tmp/sliced_dataset'
     
     # Model: Path to your trained model
-    MODEL_PATH = r'/content/drive/MyDrive/kaggle_results/yolo11m_baseline_sahi/yolo11m_baseline_sahi/weights/best.pt'
+    MODEL_PATH = r'/content/drive/MyDrive/science_fair_2026/results/r_kaggle11/malaria_results_highres/weights/best.pt'
     
     # Slicing parameters (match your training)
     SLICE_SIZE = 1024
