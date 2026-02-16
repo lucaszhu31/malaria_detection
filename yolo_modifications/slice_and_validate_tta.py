@@ -310,8 +310,8 @@ if __name__ == "__main__":
     
     # Slicing parameters (match your training)
     SLICE_SIZE = 1024
-    OVERLAP_RATIO 
-    \\= 0.4
+    OVERLAP_RATIO = 0.4  
+    print(123)
     
     # =======================================================
     
