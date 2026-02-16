@@ -32,7 +32,7 @@ def train_baseline(data_yaml, epochs=50, imgsz=1024, device=0, project=None, nam
     # Load vanilla YOLO11m
     model = YOLO('yolo11m.pt')
     
-    # Train (no augmentation)
+    # Train with data augmentation
     results = model.train(
         data=data_yaml,
         epochs=epochs,
@@ -45,6 +45,20 @@ def train_baseline(data_yaml, epochs=50, imgsz=1024, device=0, project=None, nam
         lr0=0.01,
         momentum=0.937,
         weight_decay=0.0005,
+        # Data Augmentation
+        hsv_h=0.015,
+        hsv_s=0.7,
+        hsv_v=0.4,
+        degrees=0.0,
+        translate=0.1,
+        scale=0.5,
+        shear=0.0,
+        perspective=0.0,
+        flipud=0.0,
+        fliplr=0.5,
+        mosaic=1.0,
+        mixup=0.0,
+        copy_paste=0.0,
         verbose=True,
         plots=True,
         save=True,
