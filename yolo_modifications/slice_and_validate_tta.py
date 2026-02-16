@@ -29,9 +29,25 @@ def copy_dataset_to_tmp(source_dir, tmp_dir):
     source_path = Path(source_dir)
     tmp_path = Path(tmp_dir)
     
-    # Remove existing tmp dataset if present
+    # Check if dataset already exists in /tmp/
+    val_images_dst = tmp_path / 'images' / 'val'
+    val_labels_dst = tmp_path / 'labels' / 'val'
+    
+    if val_images_dst.exists() and val_labels_dst.exists():
+        img_count = len(list(val_images_dst.glob('*.jpg')) + list(val_images_dst.glob('*.png')))
+        lbl_count = len(list(val_labels_dst.glob('*.txt')))
+        
+        if img_count > 0 and lbl_count > 0:
+            print(f"✓ Dataset already exists in {tmp_path}")
+            print(f"  - {img_count} images found")
+            print(f"  - {lbl_count} labels found")
+            print(f"  Skipping copy (delete {tmp_path} to force re-copy)")
+            print(f"{'='*70}\n")
+            return str(tmp_path)
+    
+    # Remove existing tmp dataset if incomplete/corrupted
     if tmp_path.exists():
-        print(f"Removing existing {tmp_path}...")
+        print(f"Removing existing incomplete dataset at {tmp_path}...")
         shutil.rmtree(tmp_path)
     
     # Create tmp directory structure
@@ -53,14 +69,12 @@ def copy_dataset_to_tmp(source_dir, tmp_dir):
     print(f"Copying {len(val_labels)} validation labels...\n")
     
     # Copy validation images
-    val_images_dst = tmp_path / 'images' / 'val'
     val_images_dst.mkdir(parents=True, exist_ok=True)
     
     for img in tqdm(val_images, desc="Copying images"):
         shutil.copy2(img, val_images_dst / img.name)
     
     # Copy validation labels
-    val_labels_dst = tmp_path / 'labels' / 'val'
     val_labels_dst.mkdir(parents=True, exist_ok=True)
     
     for lbl in tqdm(val_labels, desc="Copying labels"):
@@ -191,9 +205,10 @@ def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
                     
                     patch_id += 1
     
-    # Create data.yaml (validation only, no train path needed)
+    # Create data.yaml (YOLO requires 'train' key even for validation only)
     data_yaml = {
         'path': str(output_path),
+        'train': 'images/val',  # Point to val (won't be used during validation)
         'val': 'images/val',
         'nc': 2,
         'names': {0: 'Parasite', 1: 'WBC'}
