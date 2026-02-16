@@ -169,11 +169,6 @@ def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
                             cv2.BORDER_CONSTANT, value=[0, 0, 0]
                         )
                     
-                    # Save patch
-                    patch_name = f"{img_path.stem}_patch{patch_id}"
-                    patch_path = output_path / 'images' / split / f"{patch_name}.jpg"
-                    cv2.imwrite(str(patch_path), patch)
-                    
                     # Convert and save labels for this patch
                     patch_labels = []
                     for label in labels:
@@ -205,20 +200,26 @@ def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
                             
                             patch_labels.append(f"{class_id} {patch_cx} {patch_cy} {patch_w} {patch_h}\n")
                     
-                    # Save patch labels (even if empty)
-                    label_path_out = output_path / 'labels' / split / f"{patch_name}.txt"
-                    with open(label_path_out, 'w') as f:
-                        f.writelines(patch_labels)
-                    
-                    patch_id += 1
+                    # Only save patches with labels (match training behavior)
+                    if patch_labels:
+                        patch_name = f"{img_path.stem}_patch{patch_id}"
+                        patch_path = output_path / 'images' / split / f"{patch_name}.jpg"
+                        cv2.imwrite(str(patch_path), patch)
+                        
+                        # Save patch labels
+                        label_path_out = output_path / 'labels' / split / f"{patch_name}.txt"
+                        with open(label_path_out, 'w') as f:
+                            f.writelines(patch_labels)
+                        
+                        patch_id += 1
     
     # Create data.yaml (YOLO requires 'train' key even for validation only)
     data_yaml = {
         'path': str(output_path),
-        'train': 'images/val',  # Point to val (won't be used during validation)
+        'train': 'images/train',  # Point to val (won't be used during validation)
         'val': 'images/val',
         'nc': 2,
-        'names': {0: 'Parasite', 1: 'WBC'}
+        'names': {0: 'Trophozoite', 1: 'WBC'}  # Match original dataset
     }
     
     yaml_path = output_path / 'data.yaml'
@@ -253,7 +254,7 @@ def validate_with_tta(model_path, data_yaml, imgsz=1024):
     results = model.val(
         data=data_yaml,
         imgsz=imgsz,
-        batch=16,
+        batch=-1,
         #augment=True,  # Enable TTA
         verbose=True,
         project='/content/drive/MyDrive/kaggle_results/yolo11m_final',
