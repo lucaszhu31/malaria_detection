@@ -175,30 +175,30 @@ def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
                         parts = label.strip().split()
                         if len(parts) < 5:
                             continue
-                        class_id = parts[0]
+                        class_id = int(parts[0])
                         cx, cy, bw, bh = map(float, parts[1:5])
                         
-                        # Convert from normalized to pixel coords
-                        x1 = int((cx - bw/2) * w)
-                        y1 = int((cy - bh/2) * h)
-                        x2 = int((cx + bw/2) * w)
-                        y2 = int((cy + bh/2) * h)
+                        # Convert normalized coords to absolute
+                        x_center = cx * w
+                        y_center = cy * h
+                        box_w = bw * w
+                        box_h = bh * h
                         
-                        # Check if box overlaps with patch
-                        if x1 < x_end and x2 > x and y1 < y_end and y2 > y:
-                            # Clip to patch
-                            px1 = max(0, x1 - x)
-                            py1 = max(0, y1 - y)
-                            px2 = min(slice_size, x2 - x)
-                            py2 = min(slice_size, y2 - y)
+                        # Check if box center is in this patch (assigns each box to exactly ONE patch)
+                        if (x <= x_center < x_end) and (y <= y_center < y_end):
+                            # Convert to patch-relative normalized coords
+                            new_x_center = (x_center - x) / slice_size
+                            new_y_center = (y_center - y) / slice_size
+                            new_w = box_w / slice_size
+                            new_h = box_h / slice_size
                             
-                            # Convert back to YOLO format
-                            patch_cx = (px1 + px2) / (2 * slice_size)
-                            patch_cy = (py1 + py2) / (2 * slice_size)
-                            patch_w = (px2 - px1) / slice_size
-                            patch_h = (py2 - py1) / slice_size
+                            # Clip to [0, 1]
+                            new_x_center = max(0, min(1, new_x_center))
+                            new_y_center = max(0, min(1, new_y_center))
+                            new_w = max(0, min(1, new_w))
+                            new_h = max(0, min(1, new_h))
                             
-                            patch_labels.append(f"{class_id} {patch_cx} {patch_cy} {patch_w} {patch_h}\n")
+                            patch_labels.append(f"{class_id} {new_x_center} {new_y_center} {new_w} {new_h}\n")
                     
                     # Only save patches with labels (match training behavior)
                     if patch_labels:
@@ -254,7 +254,6 @@ def validate_with_tta(model_path, data_yaml, imgsz=1024):
     results = model.val(
         data=data_yaml,
         imgsz=imgsz,
-        batch=15,
         #augment=True,  # Enable TTA
         verbose=True,
         project='/content/drive/MyDrive/kaggle_results/yolo11m_final',
