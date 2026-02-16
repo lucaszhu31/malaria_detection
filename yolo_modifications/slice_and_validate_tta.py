@@ -297,7 +297,7 @@ if __name__ == "__main__":
     # ==================== CONFIGURATION ====================
     
     # Input: Original yolov8_transformed dataset (Google Drive - slow)
-    ORIGINAL_DATASET = r'/content/drive/MyDrive/kaggle_datasets/yolov8_transformed'
+    ORIGINAL_DATASET = r'/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b'
     
     # Temporary copy on local SSD (for fast reading)
     TMP_DATASET = r'/tmp/original_dataset'
