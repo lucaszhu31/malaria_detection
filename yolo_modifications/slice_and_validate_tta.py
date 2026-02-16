@@ -306,7 +306,7 @@ if __name__ == "__main__":
     SLICED_DATASET = r'/tmp/sliced_dataset'
     
     # Model: Path to your trained model
-    MODEL_PATH = r'/content/drive/MyDrive/science_fair_2026/results/r_kaggle11/malaria_results_highres/weights/best.pt'
+    MODEL_PATH = r'/content/drive/MyDrive/kaggle_results/yolo11m_baseline_sahi/yolo11m_baseline_sahi/weights/best.pt'
     
     # Slicing parameters (match your training)
     SLICE_SIZE = 1024
