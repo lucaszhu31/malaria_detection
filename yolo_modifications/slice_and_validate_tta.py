@@ -94,7 +94,7 @@ def copy_dataset_to_tmp(source_dir, tmp_dir):
     return str(tmp_path)
 
 
-def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.2):
+def slice_dataset(input_dir, output_dir, slice_size=1024, overlap_ratio=0.4):
     """Slice images and convert labels to YOLO format"""
     
     print(f"\n{'='*70}")
@@ -310,7 +310,8 @@ if __name__ == "__main__":
     
     # Slicing parameters (match your training)
     SLICE_SIZE = 1024
-    OVERLAP_RATIO = 0.2
+    OVERLAP_RATIO 
+    \\= 0.4
     
     # =======================================================
     
