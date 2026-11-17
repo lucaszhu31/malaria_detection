@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 # Add yolo_modifications folder to Python path
-YOLO_MODS_PATH = Path(__file__).parent.resolve()
+YOLO_MODS_PATH = Path(__file__).parent.parent.resolve()  # yolo_modifications/
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
 from ultralytics import YOLO

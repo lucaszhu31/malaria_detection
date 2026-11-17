@@ -27,7 +27,7 @@ from sahi.utils.file import download_from_url
 import cv2
 
 # Add yolo_modifications folder to Python path
-YOLO_MODS_PATH = Path(__file__).parent.resolve()
+YOLO_MODS_PATH = Path(__file__).parent.parent.resolve()  # yolo_modifications/
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
 # Register custom CBAM modules in YOLO's parser
