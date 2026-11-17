@@ -81,17 +81,17 @@ def predict_full_slide_sahi(
     output_path.mkdir(parents=True, exist_ok=True)
     
     # Load detection model
-    print("🔄 Loading YOLO11m-CBAM model...")
+    print("Loading YOLO11m-CBAM model...")
     detection_model = AutoDetectionModel.from_pretrained(
         model_type='yolov8',  # YOLO11 uses YOLOv8 format
         model_path=str(model_path),
         confidence_threshold=confidence_threshold,
         device='cuda:0',  # Use GPU
     )
-    print("✅ Model loaded\n")
+    print("Model loaded\n")
     
     # Read image
-    print("📸 Reading full slide image...")
+    print("Reading full slide image...")
     image = read_image(str(image_path))
     h, w = image.shape[:2]
     print(f"   Image size: {w}×{h} pixels\n")
@@ -102,7 +102,7 @@ def predict_full_slide_sahi(
     n_patches_w = (w - slice_size) // stride + 1
     total_patches = n_patches_h * n_patches_w
     
-    print(f"🔪 Slicing into ~{total_patches} patches ({n_patches_h}×{n_patches_w} grid)...")
+    print(f"Slicing into ~{total_patches} patches ({n_patches_h}×{n_patches_w} grid)...")
     
     # Run SAHI prediction
     result = get_sliced_prediction(
@@ -130,7 +130,7 @@ def predict_full_slide_sahi(
         class_counts[cls_name] = class_counts.get(cls_name, 0) + 1
     
     print("\n" + "="*70)
-    print("✅ Detection Complete!")
+    print("Detection Complete!")
     print("="*70)
     print(f"Total detections: {n_detections}")
     for cls_name, count in class_counts.items():
@@ -142,7 +142,7 @@ def predict_full_slide_sahi(
         image_name = Path(image_path).stem
         vis_path = output_path / f"{image_name}_detections.jpg"
         
-        print(f"💾 Saving visualization to: {vis_path}")
+        print(f"Saving visualization to: {vis_path}")
         result.export_visuals(
             export_dir=str(output_path),
             file_name=f"{image_name}_detections",
@@ -165,7 +165,7 @@ def predict_full_slide_sahi(
             f.write(f"  BBox: x={bbox.minx:.1f}, y={bbox.miny:.1f}, ")
             f.write(f"w={bbox.maxx-bbox.minx:.1f}, h={bbox.maxy-bbox.miny:.1f}\n\n")
     
-    print(f"💾 Saved predictions to: {pred_path}\n")
+    print(f"Saved predictions to: {pred_path}\n")
     
     return result
 
@@ -196,7 +196,7 @@ def batch_predict_sahi(
     image_path = Path(image_folder)
     image_files = list(image_path.glob('*.jpg')) + list(image_path.glob('*.png'))
     
-    print(f"\n📁 Found {len(image_files)} images in {image_folder}")
+    print(f"\nFound {len(image_files)} images in {image_folder}")
     print("="*70 + "\n")
     
     results = {}
@@ -219,7 +219,7 @@ def batch_predict_sahi(
     
     # Summary
     print("\n" + "="*70)
-    print("📊 BATCH PROCESSING SUMMARY")
+    print("BATCH PROCESSING SUMMARY")
     print("="*70)
     
     total_detections = 0
@@ -271,7 +271,7 @@ if __name__ == "__main__":
     
     if BATCH_FOLDER:
         # Batch inference on folder
-        print("🔄 Running batch SAHI inference...\n")
+        print("Running batch SAHI inference...\n")
         results = batch_predict_sahi(
             model_path=MODEL_PATH,
             image_folder=BATCH_FOLDER,
@@ -282,7 +282,7 @@ if __name__ == "__main__":
         )
     else:
         # Single image inference
-        print("🔄 Running SAHI inference on single image...\n")
+        print("Running SAHI inference on single image...\n")
         result = predict_full_slide_sahi(
             model_path=MODEL_PATH,
             image_path=SINGLE_IMAGE,
@@ -293,5 +293,5 @@ if __name__ == "__main__":
             visualize=True,
         )
     
-    print("🎉 SAHI inference complete!")
+    print("SAHI inference complete!")
     print(f"Results saved to: {OUTPUT_DIR}/\n")

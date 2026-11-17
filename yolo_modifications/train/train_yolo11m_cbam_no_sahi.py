@@ -21,14 +21,14 @@ sys.path.insert(0, str(YOLO_MODS_PATH))
 
 # Import custom modules
 import custom_modules
-print(f"✅ Custom CBAM modules loaded from: {YOLO_MODS_PATH}")
+print(f"Custom CBAM modules loaded from: {YOLO_MODS_PATH}")
 
 from ultralytics import YOLO
 from ultralytics.nn import tasks
 
 # Register CBAM module in YOLO's parser for post-backbone attention
 setattr(tasks, 'CBAM', custom_modules.CBAM if hasattr(custom_modules, 'CBAM') else None)
-print(f"✅ Registered CBAM module in ultralytics.nn.tasks")
+print(f"Registered CBAM module in ultralytics.nn.tasks")
 
 
 def train_yolo11m_cbam_no_sahi(
@@ -67,11 +67,11 @@ def train_yolo11m_cbam_no_sahi(
     print("="*70 + "\n")
     
     # Load model with post-backbone CBAM attention
-    print("🔄 Loading YOLO11m-CBAM...\n")
+    print("Loading YOLO11m-CBAM...\n")
     model = YOLO(str(Path(__file__).parent.resolve() / 'yolo11m-cbam.yaml'))
     
     # Train with augmentation for microscopy images
-    print("🚀 Starting training on FULL SLIDES (no slicing)...\n")
+    print("Starting training on FULL SLIDES (no slicing)...\n")
     
     results = model.train(
         # Basic settings
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     )
     
     print("\n" + "="*70)
-    print("🎉 Training Complete!")
+    print("Training Complete!")
     print("="*70)
     print(f"Model saved: {PROJECT_DIR}/{EXPERIMENT_NAME}/weights/best.pt")
     print(f"\nResults to compare:")

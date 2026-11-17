@@ -352,7 +352,7 @@ if __name__ == "__main__":
     print(f"  Acceptable if <20% slower" if (cbam_time-standard_time)/standard_time < 0.20 else "  Consider optimization")
     
     print("\n" + "=" * 60)
-    print("✅ All custom modules tested successfully!")
+    print("All custom modules tested successfully!")
     print("=" * 60)
     print("\nNext steps:")
     print("1. Create yolo11m-cbam.yaml config using these modules")

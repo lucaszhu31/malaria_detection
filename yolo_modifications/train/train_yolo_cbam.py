@@ -41,7 +41,7 @@ sys.path.insert(0, str(YOLO_MODS_PATH))
 
 # Import custom modules
 import custom_modules
-print(f"✅ Custom CBAM modules loaded from: {YOLO_MODS_PATH}")
+print(f"Custom CBAM modules loaded from: {YOLO_MODS_PATH}")
 print(f"   Available modules: {list(custom_modules.CBAM_MODULES.keys())}")
 
 from ultralytics import YOLO
@@ -49,7 +49,7 @@ from ultralytics.nn import tasks
 
 # Register CBAM module in YOLO's parser for post-backbone attention
 setattr(tasks, 'CBAM', custom_modules.CBAM if hasattr(custom_modules, 'CBAM') else None)
-print(f"✅ Registered CBAM module in ultralytics.nn.tasks")
+print(f"Registered CBAM module in ultralytics.nn.tasks")
 
 
 def slice_dataset_with_sahi(
@@ -107,7 +107,7 @@ def slice_dataset_with_sahi(
         if split not in data_config:
             continue
             
-        print(f"📍 Slicing {split} set...")
+        print(f"Slicing {split} set...")
         
         # Paths - data_config[split] is like 'images/train', so we join directly
         source_images = dataset_path / data_config[split]
@@ -120,7 +120,7 @@ def slice_dataset_with_sahi(
         output_labels.mkdir(parents=True, exist_ok=True)
         
         if not source_images.exists():
-            print(f"   ⚠️  {split} images not found: {source_images}")
+            print(f"   {split} images not found: {source_images}")
             continue
         
         # Get all images
@@ -134,7 +134,7 @@ def slice_dataset_with_sahi(
             label_path = source_labels / f"{img_path.stem}.txt"
             
             if not label_path.exists():
-                print(f"   ⚠️  Label not found: {label_path.name}")
+                print(f"   Label not found: {label_path.name}")
                 continue
             
             # Slice image with SAHI
@@ -216,7 +216,7 @@ def slice_dataset_with_sahi(
                         patch_count += 1
                         total_patches += 1
         
-        print(f"   ✅ Created {total_patches} patches from {len(image_files)} slides\n")
+        print(f"   Created {total_patches} patches from {len(image_files)} slides\n")
     
     # Create new data.yaml for sliced dataset
     new_data_yaml = output_path / 'data.yaml'
@@ -234,7 +234,7 @@ def slice_dataset_with_sahi(
         yaml.dump(sliced_config, f, default_flow_style=False)
     
     print("="*70)
-    print("✅ Slicing Complete!")
+    print("Slicing Complete!")
     print("="*70)
     print(f"Sliced dataset: {new_data_yaml}")
     print(f"Total patches: {total_patches}")
@@ -285,11 +285,11 @@ def train_yolo_cbam(
     print("="*70 + "\n")
     
     # Load model with post-backbone CBAM attention
-    print("🔄 Loading YOLO11m-CBAM...\n")
+    print("Loading YOLO11m-CBAM...\n")
     model = YOLO(str(model_path))  # Load YOLO11m with post-backbone CBAM
     
     # Train with augmentation for microscopy images
-    print("🚀 Starting training...\n")
+    print("Starting training...\n")
     
     results = model.train(
         # Basic settings
@@ -325,7 +325,7 @@ def train_yolo_cbam(
     )
     
     print("\n" + "="*70)
-    print("✅ Training Complete!")
+    print("Training Complete!")
     print("="*70)
     print(f"Best weights: {project}/{name}/weights/best.pt")
     print(f"Results: {project}/{name}/results.csv")
@@ -379,7 +379,7 @@ if __name__ == "__main__":
     
     # Step 1: Slice dataset (if needed)
     if FORCE_RESLICE or not sliced_data_yaml_path.exists():
-        print("🔪 Step 1: Slicing full slides into patches...")
+        print("Step 1: Slicing full slides into patches...")
         print(f"   This preserves parasite scale (30-115px)")
         print(f"   Full slide 4000×4000 → Multiple 1024×1024 patches\n")
         
@@ -390,13 +390,13 @@ if __name__ == "__main__":
             overlap_ratio=OVERLAP_RATIO,
         )
     else:
-        print("✅ Sliced dataset already exists, skipping slicing...")
+        print("Sliced dataset already exists, skipping slicing...")
         print(f"   Using: {sliced_data_yaml_path}")
         print(f"   (Set FORCE_RESLICE=True to re-slice)\n")
         sliced_data_yaml = str(sliced_data_yaml_path)
     
     # Step 2: Train on sliced patches
-    print("🚀 Step 2: Training YOLO11m-CBAM on patches...")
+    print("Step 2: Training YOLO11m-CBAM on patches...")
     print(f"   Model: YOLO11m with CBAM attention")
     print(f"   Data: Sliced patches at {SLICE_SIZE}×{SLICE_SIZE}")
     print(f"   Augmentation: Microscopy-optimized")
@@ -412,11 +412,11 @@ if __name__ == "__main__":
     )
     
     print("\n" + "="*70)
-    print("🎉 Training Complete!")
+    print("Training Complete!")
     print("="*70)
     print(f"Trained on: {SLICE_SIZE}×{SLICE_SIZE} patches from full slides")
     print(f"Model saved: ../../../kaggle_results/cbam_experiments/{EXPERIMENT_NAME}/weights/best.pt")
-    print("\n📋 Next Steps:")
+    print("\nNext Steps:")
     print("1. Use predict_sahi.py to run inference on full slides")
     print("2. SAHI will automatically slice test slides and merge results")
     print("3. Expected: 85-90% mAP on full slides")

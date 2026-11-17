@@ -91,7 +91,7 @@ def slice_and_predict_sahi(model_path, slide_folder, output_folder, slice_size=1
         from sahi.slicing import slice_image
         from sahi.prediction import PredictionResult
     except ImportError:
-        print("⚠️  SAHI not installed. Skipping full-slide inference.")
+        print("SAHI not installed. Skipping full-slide inference.")
         print("    Run: pip install sahi")
         return
     
@@ -107,7 +107,7 @@ def slice_and_predict_sahi(model_path, slide_folder, output_folder, slice_size=1
     model = YOLO(str(model_path))
     
     for slide_path in slide_folder.glob('*.jpg'):
-        print(f"\n📄 Processing {slide_path.name}...")
+        print(f"\nProcessing {slide_path.name}...")
         img = cv2.imread(str(slide_path))
         h, w = img.shape[:2]
         
@@ -145,7 +145,7 @@ def slice_and_predict_sahi(model_path, slide_folder, output_folder, slice_size=1
             for pred in predictions:
                 f.write(f"{pred.cls} {pred.conf} {pred.xywh[0]} {pred.xywh[1]} {pred.xywh[2]} {pred.xywh[3]}\n")
         
-        print(f"   ✅ Saved {len(predictions)} predictions to {output_file}")
+        print(f"   Saved {len(predictions)} predictions to {output_file}")
 
 
 if __name__ == "__main__":
@@ -163,8 +163,8 @@ if __name__ == "__main__":
     #   labels/val/*.txt
     
     if not Path(DATA_YAML).exists():
-        print(f"❌ Sliced dataset not found: {DATA_YAML}")
-        print("\n📌 This script expects a PRE-SLICED dataset from SAHI")
+        print(f"Sliced dataset not found: {DATA_YAML}")
+        print("\nThis script expects a PRE-SLICED dataset from SAHI")
         print("   Expected location: /tmp/malaria_data/yolov8_transformed/data.yaml")
         print("   (Or modify DATA_YAML path in this script)")
         sys.exit(1)

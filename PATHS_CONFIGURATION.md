@@ -29,8 +29,8 @@ SLICED_OUTPUT_DIR = '/content/drive/MyDrive/kaggle_datasets/sliced_dataset'
 ```
 
 **Check these exist on Colab before running**:
-- ✅ `/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/data.yaml`
-- ✅ `/content/drive/MyDrive/kaggle_datasets/` (has write permission)
+- `/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/data.yaml`
+- `/content/drive/MyDrive/kaggle_datasets/` (has write permission)
 
 ---
 
@@ -59,21 +59,21 @@ Path(__file__).parent.parent = code/
                               ↓
 / 'yolo_modifications' = code/yolo_modifications/
                               ↓
-imports custom_modules.py ✅
+imports custom_modules.py
 ```
 
 **Works from any location**:
 ```powershell
 # From root
-python code/train_predict/train_yolo_cbam.py  ✅
+python code/train_predict/train_yolo_cbam.py
 
 # From code directory
 cd code
-python train_predict/train_yolo_cbam.py  ✅
+python train_predict/train_yolo_cbam.py
 
 # From train_predict directory
 cd code/train_predict
-python train_yolo_cbam.py  ✅
+python train_yolo_cbam.py
 ```
 
 ---
@@ -81,13 +81,13 @@ python train_yolo_cbam.py  ✅
 ## File Dependencies
 
 ### train_yolo_cbam.py requires:
-1. ✅ `code/yolo_modifications/custom_modules.py` (auto-found)
-2. ✅ `code/yolo_modifications/yolo11m-se.yaml` (auto-found)
-3. ⚠️ `/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/data.yaml` (Colab)
+1. `code/yolo_modifications/custom_modules.py` (auto-found)
+2. `code/yolo_modifications/yolo11m-se.yaml` (auto-found)
+3. `/content/drive/MyDrive/kaggle_datasets/yolov8_transformed_b/data.yaml` (Colab)
 
 ### predict.py requires:
-1. ⚠️ Trained model at `MODEL_PATH` (created after training)
-2. ⚠️ Test image at `SINGLE_IMAGE` or folder at `BATCH_FOLDER` (Colab)
+1. Trained model at `MODEL_PATH` (created after training)
+2. Test image at `SINGLE_IMAGE` or folder at `BATCH_FOLDER` (Colab)
 
 ---
 
@@ -111,10 +111,10 @@ drive.mount('/content/drive')
 ```
 
 Script will:
-1. Auto-find custom_modules.py ✅
-2. Load yolo11m-se.yaml ✅
-3. Slice data from ORIGINAL_DATA_YAML ✅
-4. Train and save to PROJECT_DIR ✅
+1. Auto-find custom_modules.py
+2. Load yolo11m-se.yaml
+3. Slice data from ORIGINAL_DATA_YAML
+4. Train and save to PROJECT_DIR
 
 ### Step 4: Run inference
 ```python
@@ -144,12 +144,12 @@ Loads trained model and runs predictions.
 
 | File | Location | Auto-resolved? | Notes |
 |------|----------|---|---|
-| custom_modules.py | code/yolo_modifications/ | ✅ Yes | Found from YOLO_MODS_PATH |
-| se_block_cbam.py | code/yolo_modifications/ | ✅ Yes | Imported by custom_modules.py |
-| yolo11m-se.yaml | code/yolo_modifications/ | ✅ Yes | Loaded by YOLO |
-| data.yaml | /content/drive/.../yolov8_transformed_b/ | ❌ No | Must exist on Colab |
-| best.pt | /content/drive/.../cbam_experiments/.../ | ❌ No | Created after training |
-| test slide | /content/drive/.../test_data/ | ❌ No | Must provide path |
+| custom_modules.py | code/yolo_modifications/ | Yes | Found from YOLO_MODS_PATH |
+| se_block_cbam.py | code/yolo_modifications/ | Yes | Imported by custom_modules.py |
+| yolo11m-se.yaml | code/yolo_modifications/ | Yes | Loaded by YOLO |
+| data.yaml | /content/drive/.../yolov8_transformed_b/ | No | Must exist on Colab |
+| best.pt | /content/drive/.../cbam_experiments/.../ | No | Created after training |
+| test slide | /content/drive/.../test_data/ | No | Must provide path |
 
 ---
 

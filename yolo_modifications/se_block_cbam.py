@@ -281,4 +281,4 @@ if __name__ == "__main__":
     print(f"  Output shape: {y_bn.shape}")
     print()
     
-    print("✅ All tests passed!")
+    print("All tests passed!")

@@ -59,7 +59,7 @@ def copy_dataset_to_tmp(source_dir, tmp_dir):
             print(f"{'='*70}\n")
             return str(tmp_path)
         else:
-            print(f"\n⚠ Dataset changed! File counts don't match.")
+            print(f"\nDataset changed! File counts don't match.")
             print(f"  Removing old cache and re-copying...")
     
     # Remove existing tmp dataset (either doesn't exist, incomplete, or outdated)
