@@ -4,6 +4,12 @@ YOLO Module Registry for CBAM
 This file ensures custom modules are properly registered with YOLO parser
 """
 
+import sys
+from pathlib import Path
+
+# CBAM lives in main_pipeline/model
+sys.path.insert(0, str((Path(__file__).parents[2] / 'main_pipeline' / 'model').resolve()))
+
 from ultralytics.nn import tasks
 from cbam import CBAM
 

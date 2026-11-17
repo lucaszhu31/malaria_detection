@@ -15,8 +15,8 @@ import os
 from pathlib import Path
 import yaml
 
-# Add yolo_modifications folder to Python path
-YOLO_MODS_PATH = Path(__file__).parent.parent.resolve()  # yolo_modifications/
+# Add main_pipeline/model (CBAM + custom modules) to Python path
+YOLO_MODS_PATH = (Path(__file__).parents[2] / 'main_pipeline' / 'model').resolve()  # main_pipeline/model/
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
 # Import custom modules
@@ -68,7 +68,7 @@ def train_yolo11m_cbam_no_sahi(
     
     # Load model with post-backbone CBAM attention
     print("Loading YOLO11m-CBAM...\n")
-    model = YOLO(str(Path(__file__).parent.resolve() / 'yolo11m-cbam.yaml'))
+    model = YOLO(str(YOLO_MODS_PATH / 'yolo11m-cbam.yaml'))
     
     # Train with augmentation for microscopy images
     print("Starting training on FULL SLIDES (no slicing)...\n")

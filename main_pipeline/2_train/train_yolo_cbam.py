@@ -35,8 +35,8 @@ import yaml
 from pathlib import Path
 from tqdm import tqdm
 
-# Add yolo_modifications folder to Python path
-YOLO_MODS_PATH = Path(__file__).parent.parent.resolve()  # yolo_modifications/
+# Add main_pipeline/model (CBAM + custom modules) to Python path
+YOLO_MODS_PATH = (Path(__file__).parent.parent / 'model').resolve()  # main_pipeline/model/
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
 # Import custom modules
@@ -271,7 +271,7 @@ def train_yolo_cbam(
     print("="*70)
     
     # Resolve model path
-    model_path = Path(__file__).parent.resolve() / 'yolo11m-cbam.yaml'
+    model_path = YOLO_MODS_PATH / 'yolo11m-cbam.yaml'
     
     if not model_path.exists():
         raise FileNotFoundError(f"Model YAML not found: {model_path}")

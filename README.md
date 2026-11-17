@@ -3,93 +3,165 @@
 Detects malaria parasites (trophozoites) and WBCs in full blood-smear slides.
 
 **The final method is YOLO11m + CBAM attention, trained and run on SAHI slices.**
-The repo also keeps scripts from experiments I ran along the way. They are kept for
-reference and comparison, but the final results do not use them. This file shows which is which.
+Everything the final method uses is in `main_pipeline/`. Everything else is in
+`experiments/`, grouped by the files that work together.
+
+```
+malaria_detection/
+├── main_pipeline/            the final method, folders in run order
+│   ├── 1_data_prep/
+│   ├── 2_train/
+│   ├── 3_predict/
+│   └── model/                model files shared by training, prediction and side B
+└── experiments/              not used by the final method
+    ├── A_baseline_no_cbam/   YOLO11m without CBAM, plus its validation and Grad-CAM
+    ├── B_cbam_ablations/     CBAM variants that reuse main_pipeline/model
+    ├── C_r_kaggle11_model/   everything built on the older r_kaggle11 model
+    └── D_unused/             dead code, kept for reference
+```
+
+All scripts run on Google Colab. Their data and weights paths point at Google
+Drive (`/content/drive/MyDrive/...`), not at folders in this repo.
 
 ---
 
-## Main pipeline (YOLO11m + SAHI + CBAM)
+## Main pipeline
 
 ```
-Kaggle Lacuna dataset
-   │  augmentations/kaggle_annotation_conversion.py   (CSV boxes → YOLO format, train/val split)
-   ▼
-yolov8_transformed/  (full slides)
-   │  yolo_modifications/train/train_yolo_cbam.py
-   │    1. SAHI-style slicing → 1024×1024 patches (overlap 0.4)
-   │    2. Train YOLO11m-CBAM on patches (yolo11m-cbam.yaml, 40 epochs, imgsz 1024)
-   ▼
-cbam_experiments/yolo11m_cbam_sahi_1024px/weights/best.pt
-   │  yolo_modifications/predict/predict.py
-   │    SAHI sliced inference on full slides → merged detections
-   ▼
-Predictions on full slides
+Kaggle Lacuna CSVs + images
+  │
+  │ 1  main_pipeline/1_data_prep/kaggle_annotation_conversion.py
+  │      CSV boxes -> YOLO labels (0 = Trophozoite, 1 = WBC), train/val split
+  ▼
+kaggle_datasets/yolov8_transformed/                  full slides
+  │
+  │ 2  main_pipeline/2_train/train_yolo_cbam.py
+  │      a. slices slides into 1024x1024 patches (overlap 0.4) -> /tmp/sliced_dataset
+  │      b. trains YOLO11m-CBAM on the patches (40 epochs, imgsz 1024)
+  │           model/yolo11m-cbam.yaml      architecture: YOLO11m + 1 CBAM layer after the backbone
+  │             └ needs CBAM registered:   model/custom_modules.py -> model/cbam.py
+  ▼
+kaggle_results/cbam_experiments/yolo11m_cbam_sahi_1024px/weights/best.pt
+  │
+  │ 3  main_pipeline/3_predict/predict.py
+  │      imports model/custom_modules.py -> model/cbam.py to load best.pt,
+  │      then runs SAHI sliced prediction on full slides
+  ▼
+Merged detections on full slides
 ```
 
 | File | Role |
 |---|---|
-| `augmentations/kaggle_annotation_conversion.py` | Data prep: converts the Kaggle annotations to YOLO format |
-| `yolo_modifications/train/train_yolo_cbam.py` | **Main training script** (slicing + CBAM training) |
-| `yolo_modifications/train/yolo11m-cbam.yaml` | **Model architecture**: standard YOLO11m with one `CBAM` layer after the backbone (after C2PSA, before the neck) |
-| `yolo_modifications/cbam.py` | CBAM implementation (channel + spatial attention) used by the yaml |
-| `yolo_modifications/custom_modules.py` | Imports `CBAM` so the training/predict scripts can register it with Ultralytics |
-| `yolo_modifications/predict/predict.py` | **Main inference script** (SAHI sliced prediction on full slides) |
+| `1_data_prep/kaggle_annotation_conversion.py` | Converts the Kaggle annotations to YOLO format and writes `data.yaml` |
+| `2_train/train_yolo_cbam.py` | **Main training script**: slicing + CBAM training |
+| `3_predict/predict.py` | **Main inference script**: SAHI sliced prediction on full slides |
+| `model/yolo11m-cbam.yaml` | Model architecture: standard YOLO11m with one `CBAM` layer after C2PSA, before the neck |
+| `model/cbam.py` | The `CBAM` layer: channel + spatial attention |
+| `model/custom_modules.py` | Imports `CBAM` so scripts can register it with Ultralytics |
+| `model/migrate_checkpoints.py` | One-off: rewrites `best.pt` files saved before the split so they reference `cbam.CBAM` (old name: `se_block_cbam.CBAM`) |
 
-Only the `CBAM` class does any work. The other modules in `custom_modules.py`
-(`C2f_CBAM`, `Conv_CBAM`, `Bottleneck_CBAM`, `SPPF_CBAM`, `C2f_CBAM_Deep`) and
-`SEBlock` / `SEBottleneck` (`squeeze_excitation.py`, `se_bottleneck.py`) are earlier attention-placement
-ideas. The final yaml does not use them.
+Only the `CBAM` class does any work in the model. The other wrappers in
+`custom_modules.py` (`C2f_CBAM`, `Conv_CBAM`, `Bottleneck_CBAM`, `SPPF_CBAM`,
+`C2f_CBAM_Deep`) are earlier attention-placement ideas that the yaml does not use.
 
 ---
 
-## Experiments and ablations (not the final method)
+## Experiments (not the final method)
 
-### Detector variants (compared against the main pipeline)
+Each group is linked by the data folder or model weights its files share.
 
-| File | What it tested | Difference from main |
-|---|---|---|
-| `train/train_yolo11m_sahi_only.py` | Baseline: vanilla YOLO11m on SAHI patches | **No CBAM** (ablation) |
-| `train/train_sahi_slice_and_train.py` | Same baseline, slices data itself, no augmentation → `yolo11m_baseline_sahi` | **No CBAM**, no augmentation |
-| `train/train_yolo11m_cbam_no_sahi.py` | CBAM trained on full slides resized to 1280 | **No SAHI** (ablation) |
-| `train/train_yolo11m_fpn_cbam.py` | Earlier all-in-one CBAM + SAHI script, left over from the CE-FPN attempt | Superseded by `train_yolo_cbam.py` |
-| `predict/slice_and_validate_tta.py` | Validation with test-time augmentation | Points at the **baseline** model; `augment=True` is commented out |
-| `register_modules.py` | Old helper for registering CBAM | Unused; the train/predict scripts register CBAM themselves |
+### A. Baseline YOLO11m, no CBAM: `experiments/A_baseline_no_cbam/`
+**Linked by:** the sliced dataset `/tmp/sliced_dataset` and the baseline weights `kaggle_results/yolo11m_baseline_sahi/.../best.pt`.
 
-### Two-stage classifier (YOLO crops → classifier)
+```
+yolov8_transformed (full slides)
+  │ train_sahi_slice_and_train.py     slices -> /tmp/sliced_dataset (also trains, no augmentation)
+  ▼
+/tmp/sliced_dataset
+  │ train_yolo11m_sahi_only.py         vanilla YOLO11m, no CBAM (the ablation for main step 2)
+  ▼
+yolo11m_baseline_sahi/.../best.pt
+  ├─> slice_and_validate_tta.py        validation on sliced yolov8_transformed_b (augment=True is commented out)
+  └─> grad_cam.py                      Grad-CAM heatmaps on sample images
+```
 
-All of these use the older `r_kaggle11/malaria_results_highres` model, not the CBAM model.
+### B. CBAM ablations: `experiments/B_cbam_ablations/`
+**Linked by:** both reuse the main model files in `main_pipeline/model/` (yaml, `custom_modules.py`, `cbam.py`).
 
-| File | Purpose |
+| File | What it tested |
 |---|---|
-| `classifier/classifierdataset.py` | Crops YOLO detections into parasite / artifact folders |
-| `classifier/confthres_optimizer.py` | Same, but tunes the confidence threshold to get a ~50/50 class balance |
-| `classifier/mbnv3.py` | MobileNetV3 parasite-vs-artifact classifier |
-| `classifier/customcnn.py` | Small custom CNN for 30–115 px crops |
+| `train_yolo11m_cbam_no_sahi.py` | Same CBAM model trained on full slides resized to 1280, **no SAHI slicing** |
+| `train_yolo11m_fpn_cbam.py` | Earlier all-in-one CBAM + SAHI script from the CE-FPN attempt; replaced by `2_train/train_yolo_cbam.py` |
 
-### Dataset cleanup experiments
+### C. Older `r_kaggle11` model: `experiments/C_r_kaggle11_model/`
+**Linked by:** the older weights `r_kaggle11/malaria_results_highres/.../best.pt`, which were trained outside this repo, and the filtered dataset `yolov8_transformed_b`.
 
-| File | Purpose |
-|---|---|
-| `dataset/dataset_imgcleanup.py` | Builds `yolov8_transformed_b` with the 4000×3000 images removed |
-| `dataset/image_seperations.py` | Counts images by resolution |
-| `dataset/label_cleanup.py` | Pseudo-labels: adds high-confidence trophozoite predictions to `yolov8_transformed_b` |
-| `dataset/label_cleanup_test.py` | Draft of the above (placeholder model path) |
-| `augmentations/lacuna_old_augmentation.py` | Old hand-made microscope/smartphone augmentation |
+```
+dataset_cleanup/image_seperations.py     counts images per resolution -> picks 4000x3000 to drop
+dataset_cleanup/dataset_imgcleanup.py    yolov8_transformed -> yolov8_transformed_b (4000x3000 removed)
+                                            │
+r_kaggle11 best.pt ─────────────────────────┤
+  ├─> dataset_cleanup/label_cleanup.py      adds high-confidence trophozoite pseudo-labels to yolov8_transformed_b
+  ├─> two_stage_classifier/classifierdataset.py   ┐ crop detections into
+  ├─> two_stage_classifier/confthres_optimizer.py ┘ crops_for_mobilenet/{parasites, artifacts_bg}
+  │       (also tunes the confidence threshold toward a 50/50 balance)
+  │                                    │
+  │                                    ├─> two_stage_classifier/mbnv3.py      MobileNetV3 parasite vs artifact
+  │                                    └─> two_stage_classifier/customcnn.py  small custom CNN for 30-115 px crops
+  └─> heatmap.py                            Ultralytics detection heatmap
+```
 
 The main pipeline trains on `yolov8_transformed`, **not** `yolov8_transformed_b`.
 
-### Visualization / analysis
+### D. Unused: `experiments/D_unused/`
+**Linked by:** nothing. None of these feed any other script.
 
-| File | Purpose |
+| File | Why it's unused |
 |---|---|
-| `visualizations/grad_cam.py` | Grad-CAM heatmaps (currently points at the baseline SAHI model) |
-| `visualizations/heatmap.py` | Ultralytics detection heatmap (points at `r_kaggle11`) |
+| `squeeze_excitation.py` | `SEBlock` (channel-only attention); never placed in the model |
+| `se_bottleneck.py` | ResNet-style bottleneck built on `SEBlock` (imports `squeeze_excitation.py`) |
+| `register_modules.py` | Old CBAM registration helper; each script now registers CBAM itself |
+| `label_cleanup_test.py` | Draft of `label_cleanup.py` with placeholder model paths |
+| `lacuna_old_augmentation.py` | Old hand-made microscope/smartphone augmentation |
+
+---
+
+## Folder change (before -> after)
+
+```
+BEFORE                                              AFTER
+augmentations/kaggle_annotation_conversion.py   ->  main_pipeline/1_data_prep/
+yolo_modifications/train/train_yolo_cbam.py     ->  main_pipeline/2_train/
+yolo_modifications/predict/predict.py           ->  main_pipeline/3_predict/
+yolo_modifications/train/yolo11m-cbam.yaml      ->  main_pipeline/model/
+yolo_modifications/cbam.py                      ->  main_pipeline/model/
+yolo_modifications/custom_modules.py            ->  main_pipeline/model/
+yolo_modifications/migrate_checkpoints.py       ->  main_pipeline/model/
+yolo_modifications/train/train_sahi_slice_and_train.py  ->  experiments/A_baseline_no_cbam/
+yolo_modifications/train/train_yolo11m_sahi_only.py     ->  experiments/A_baseline_no_cbam/
+yolo_modifications/predict/slice_and_validate_tta.py    ->  experiments/A_baseline_no_cbam/
+visualizations/grad_cam.py                      ->  experiments/A_baseline_no_cbam/
+yolo_modifications/train/train_yolo11m_cbam_no_sahi.py  ->  experiments/B_cbam_ablations/
+yolo_modifications/train/train_yolo11m_fpn_cbam.py      ->  experiments/B_cbam_ablations/
+dataset/{image_seperations,dataset_imgcleanup,label_cleanup}.py  ->  experiments/C_r_kaggle11_model/dataset_cleanup/
+classifier/*.py                                 ->  experiments/C_r_kaggle11_model/two_stage_classifier/
+visualizations/heatmap.py                       ->  experiments/C_r_kaggle11_model/
+yolo_modifications/{squeeze_excitation,se_bottleneck,register_modules}.py  ->  experiments/D_unused/
+dataset/label_cleanup_test.py                   ->  experiments/D_unused/
+augmentations/lacuna_old_augmentation.py        ->  experiments/D_unused/
+PATHS_CONFIGURATION.md                          ->  removed (described an older layout; this README replaces it)
+```
+
+**Why it's laid out this way**
+- **The top level splits main from not-main**, so you can tell what the final method uses without opening a file.
+- **Numbered folders** (`1_data_prep`, `2_train`, `3_predict`) give the main pipeline's run order.
+- **`main_pipeline/model/` is shared.** Training, prediction and the side B ablations all load the same model files from this one place.
+- **Experiments are grouped by what links them, not by file type.** For example, `grad_cam.py` sits with the baseline it visualizes, and `heatmap.py` sits with the other `r_kaggle11` scripts.
 
 ---
 
 ## Known inconsistencies in the main pipeline
 
-- **Slice overlap:** training uses `OVERLAP_RATIO = 0.4`, but `predict.py` uses `0.2`, even though the comment there says it must match training.
+- **Slice overlap:** training uses `OVERLAP_RATIO = 0.4`, but `3_predict/predict.py` uses `0.2`, even though the comment there says it must match training.
 - **Weights path:** training saves to `/content/drive/MyDrive/kaggle_results/cbam_experiments/...`, but `predict.py` loads from `/content/drive/MyDrive/science_fair_2026/kaggle_results/cbam_experiments/...`.
-- `yolo11m-cbam.yaml` has the comment `nc: 2 # (parasite, artifact)`, but the dataset classes are Trophozoite / WBC. Ultralytics takes `nc` from `data.yaml`, so this only affects the comment.
-- `PATHS_CONFIGURATION.md` describes an older layout (`code/train_predict/`, `yolo11m-se.yaml`) and is out of date.
+- `model/yolo11m-cbam.yaml` has the comment `nc: 2 # (parasite, artifact)`, but the dataset classes are Trophozoite / WBC. Ultralytics takes `nc` from `data.yaml`, so this only affects the comment.

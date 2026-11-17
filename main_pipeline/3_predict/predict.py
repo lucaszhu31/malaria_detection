@@ -26,8 +26,8 @@ from sahi.utils.cv import read_image
 from sahi.utils.file import download_from_url
 import cv2
 
-# Add yolo_modifications folder to Python path
-YOLO_MODS_PATH = Path(__file__).parent.parent.resolve()  # yolo_modifications/
+# Add main_pipeline/model (CBAM + custom modules) to Python path
+YOLO_MODS_PATH = (Path(__file__).parent.parent / 'model').resolve()  # main_pipeline/model/
 sys.path.insert(0, str(YOLO_MODS_PATH))
 
 # Register custom CBAM modules in YOLO's parser

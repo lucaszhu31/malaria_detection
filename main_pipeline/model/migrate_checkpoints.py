@@ -8,7 +8,7 @@ name to cbam, loads each checkpoint and saves it back, so it records
 `cbam.CBAM` from then on. A <name>.pt.bak copy is kept before rewriting.
 
 Usage (on Colab, where the checkpoints live):
-    python yolo_modifications/migrate_checkpoints.py <file.pt or folder> [...]
+    python main_pipeline/model/migrate_checkpoints.py <file.pt or folder> [...]
 """
 
 import shutil
