@@ -5,7 +5,7 @@ This file ensures custom modules are properly registered with YOLO parser
 """
 
 from ultralytics.nn import tasks
-from se_block_cbam import CBAM
+from cbam import CBAM
 
 
 def register_custom_modules():

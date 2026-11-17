@@ -9,7 +9,7 @@ science_fair_2026/
 │   │   └── predict.py           ← Run from anywhere
 │   └── yolo_modifications/
 │       ├── custom_modules.py    ← Imported by train_yolo_cbam.py
-│       ├── se_block_cbam.py     ← Used by custom_modules.py
+│       ├── cbam.py              ← Used by custom_modules.py
 │       └── yolo11m-se.yaml      ← YOLO architecture config
 └── PATHS_CONFIGURATION.md       ← This file
 ```
@@ -145,7 +145,7 @@ Loads trained model and runs predictions.
 | File | Location | Auto-resolved? | Notes |
 |------|----------|---|---|
 | custom_modules.py | code/yolo_modifications/ | Yes | Found from YOLO_MODS_PATH |
-| se_block_cbam.py | code/yolo_modifications/ | Yes | Imported by custom_modules.py |
+| cbam.py | code/yolo_modifications/ | Yes | Imported by custom_modules.py |
 | yolo11m-se.yaml | code/yolo_modifications/ | Yes | Loaded by YOLO |
 | data.yaml | /content/drive/.../yolov8_transformed_b/ | No | Must exist on Colab |
 | best.pt | /content/drive/.../cbam_experiments/.../ | No | Created after training |

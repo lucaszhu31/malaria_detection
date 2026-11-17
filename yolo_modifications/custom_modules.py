@@ -8,7 +8,7 @@ import torch.nn as nn
 from ultralytics.nn.modules import C2f, Conv, SPPF, Bottleneck
 
 # Import our CBAM block
-from se_block_cbam import CBAM
+from cbam import CBAM
 
 
 class C2f_CBAM(nn.Module):
