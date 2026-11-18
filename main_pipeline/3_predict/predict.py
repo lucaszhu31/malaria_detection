@@ -48,6 +48,7 @@ def predict_full_slide_sahi(
     confidence_threshold=0.25,
     nms_threshold=0.5,
     visualize=True,
+    device=None,
 ):
     """
     Run SAHI inference on full blood smear slide
@@ -61,6 +62,7 @@ def predict_full_slide_sahi(
         confidence_threshold: Detection confidence threshold
         nms_threshold: NMS IoU threshold for merging detections
         visualize: Save visualization with bounding boxes
+        device: 'cuda:0', 'cpu', ... (default: cuda:0 if available, else cpu)
     
     Returns:
         SAHI prediction result object
@@ -80,13 +82,17 @@ def predict_full_slide_sahi(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
+    if device is None:
+        import torch
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
     # Load detection model
     print("Loading YOLO11m-CBAM model...")
     detection_model = AutoDetectionModel.from_pretrained(
         model_type='yolov8',  # YOLO11 uses YOLOv8 format
         model_path=str(model_path),
         confidence_threshold=confidence_threshold,
-        device='cuda:0',  # Use GPU
+        device=device,
     )
     print("Model loaded\n")
     
